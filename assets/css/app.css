@@ -103,7 +103,8 @@ a:hover {
   min-width: 100%;
   background: white;
   border: 1px solid var(--border);
-  overflow-x: auto;
+  /* overflow-x: auto; */
+  overflow-y: visible;
 }
 .schedule-table {
   border-collapse: collapse;
@@ -374,4 +375,11 @@ select {
 
 .activity-cell {
   white-space: pre-line;
+}
+.schedule-table thead {
+  position: sticky;
+
+  top: 72px; /* height of your sticky .topbar */
+
+  z-index: 20;
 }
