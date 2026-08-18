@@ -2,9 +2,7 @@
 
 class Schedule
 {
-    public function __construct(private PDO $pdo)
-    {
-    }
+    public function __construct(private PDO $pdo) {}
 
     public function monthContext(int $year, int $month): array
     {
@@ -16,13 +14,66 @@ class Schedule
             $year = (int) date('Y');
         }
 
-        $firstDay = new DateTime(sprintf('%04d-%02d-01', $year, $month));
-        $lastDay = (clone $firstDay)->modify('last day of this month');
-        $previousMonth = (clone $firstDay)->modify('-1 month');
-        $nextMonth = (clone $firstDay)->modify('+1 month');
+        /*
+    |--------------------------------------------------------------------------
+    | Actual selected month
+    |--------------------------------------------------------------------------
+    */
 
-        return compact('year', 'month', 'firstDay', 'lastDay', 'previousMonth', 'nextMonth') + [
-            'monthTitle' => $firstDay->format('F Y'),
+        $monthFirstDay = new DateTime(
+            sprintf('%04d-%02d-01', $year, $month)
+        );
+
+        $monthLastDay = (clone $monthFirstDay)
+            ->modify('last day of this month');
+
+        /*
+    |--------------------------------------------------------------------------
+    | Calendar display range
+    |--------------------------------------------------------------------------
+    |
+    | Always start Monday and finish Sunday.
+    |
+    */
+
+        $firstDay = clone $monthFirstDay;
+
+        if ((int) $firstDay->format('N') !== 1) {
+            $firstDay->modify('previous monday');
+        }
+
+        $lastDay = clone $monthLastDay;
+
+        if ((int) $lastDay->format('N') !== 7) {
+            $lastDay->modify('next sunday');
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Month navigation
+    |--------------------------------------------------------------------------
+    */
+
+        $previousMonth = (clone $monthFirstDay)
+            ->modify('-1 month');
+
+        $nextMonth = (clone $monthFirstDay)
+            ->modify('+1 month');
+
+        return [
+            'year' => $year,
+            'month' => $month,
+
+            'monthFirstDay' => $monthFirstDay,
+            'monthLastDay' => $monthLastDay,
+
+            'firstDay' => $firstDay,
+            'lastDay' => $lastDay,
+
+            'previousMonth' => $previousMonth,
+            'nextMonth' => $nextMonth,
+
+            'monthTitle' => $monthFirstDay->format('F Y'),
         ];
     }
 
@@ -109,18 +160,135 @@ class Schedule
         $stmt->execute([$date, $period, $activity, $updatedBy]);
     }
 
-    private function loadSlots(DateTime $firstDay, DateTime $lastDay): array
-    {
-        $stmt = $this->pdo->prepare(
-            "SELECT schedule_date, period, activity
-             FROM schedule_slots
-             WHERE schedule_date BETWEEN ? AND ?"
-        );
-        $stmt->execute([$firstDay->format('Y-m-d'), $lastDay->format('Y-m-d')]);
+    private function loadSlots(
+        DateTime $firstDay,
+        DateTime $lastDay
+    ): array {
+        /*
+    |--------------------------------------------------------------------------
+    | Manual schedule items
+    |--------------------------------------------------------------------------
+    */
+
+        $stmt = $this->pdo->prepare("
+        SELECT
+            schedule_date,
+            period,
+            activity
+        FROM schedule_slots
+        WHERE schedule_date BETWEEN ? AND ?
+    ");
+
+        $stmt->execute([
+            $firstDay->format('Y-m-d'),
+            $lastDay->format('Y-m-d')
+        ]);
+
+        $manual = [];
+
+        foreach ($stmt->fetchAll() as $row) {
+            $manual[$row['schedule_date']][$row['period']] = $row['activity'];
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Imported calendar events
+    |--------------------------------------------------------------------------
+    */
+
+        $stmt = $this->pdo->prepare("
+        SELECT
+            schedule_date,
+            period,
+            summary,
+            start_local,
+            end_local
+        FROM calendar_events
+        WHERE schedule_date BETWEEN ? AND ?
+        ORDER BY start_local ASC
+    ");
+
+        $stmt->execute([
+            $firstDay->format('Y-m-d'),
+            $lastDay->format('Y-m-d')
+        ]);
+
+        $imported = [];
+
+        foreach ($stmt->fetchAll() as $row) {
+
+            $start =
+                new DateTime(
+                    $row['start_local']
+                );
+
+            $end =
+                !empty($row['end_local'])
+                ? new DateTime($row['end_local'])
+                : null;
+
+            $text =
+                $start->format('H:i');
+
+            if ($end) {
+                $text .=
+                    '–' .
+                    $end->format('H:i');
+            }
+
+            $text .=
+                ' ' .
+                $row['summary'];
+
+            $imported[$row['schedule_date']][$row['period']][] = $text;
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Merge
+    |--------------------------------------------------------------------------
+    |
+    | Manual text overrides imported calendar text.
+    |
+    */
 
         $slots = [];
-        foreach ($stmt->fetchAll() as $row) {
-            $slots[$row['schedule_date']][$row['period']] = $row['activity'];
+
+        $current =
+            clone $firstDay;
+
+        while ($current <= $lastDay) {
+
+            $date =
+                $current->format('Y-m-d');
+
+            foreach (
+                ['morning', 'evening']
+                as $period
+            ) {
+
+                if (
+                    array_key_exists(
+                        $period,
+                        $manual[$date] ?? []
+                    )
+                ) {
+
+                    $slots[$date][$period] =
+                        $manual[$date][$period];
+                } elseif (
+                    !empty($imported[$date][$period])
+                ) {
+
+                    $slots[$date][$period] =
+                        implode(
+                            "\n",
+                            $imported[$date][$period]
+                        );
+                }
+            }
+
+            $current->modify('+1 day');
         }
 
         return $slots;
