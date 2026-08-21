@@ -2,14 +2,12 @@
 
 class User
 {
-    public function __construct(private PDO $pdo)
-    {
-    }
+    public function __construct(private PDO $pdo) {}
 
     public function activeUsers(): array
     {
         $stmt = $this->pdo->query(
-            "SELECT id, name, username, role, status, sort_order
+            "SELECT id, name, username, role, status, sort_order,    evening_starting_points, morning_starting_points,  birthday,   name_day
              FROM users
              WHERE status = 1
              ORDER BY sort_order ASC, name ASC"
@@ -21,7 +19,7 @@ class User
     public function allUsers(): array
     {
         $stmt = $this->pdo->query(
-            "SELECT id, name, username, role, status, sort_order
+            "SELECT id, name, username, role, status, sort_order,    evening_starting_points, morning_starting_points, birthday,   name_day
              FROM users
              ORDER BY sort_order ASC, name ASC"
         );

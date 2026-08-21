@@ -383,45 +383,203 @@ select {
 .availability-td {
   position: relative;
 }
+/*
+|--------------------------------------------------------------------------
+| Availability context menu
+|--------------------------------------------------------------------------
+*/
 
-.uncertain-toggle {
-  position: absolute;
-  top: 2px;
-  right: 2px;
+.cell-options-menu {
+  position: fixed;
+  z-index: 1000;
 
-  width: 16px;
-  height: 16px;
+  width: 210px;
 
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
+  padding: 6px;
 
-  background: #e8ebef;
-  color: #68717c;
+  background: #fff;
 
-  font-size: 10px;
+  border: 1px solid #cfd5dc;
+  border-radius: 9px;
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+
+  font-size: 13px;
+}
+
+.cell-options-menu[hidden] {
+  display: none;
+}
+
+.cell-options-title {
+  padding: 7px 9px 8px;
+
+  font-size: 11px;
   font-weight: 700;
-  line-height: 16px;
+
+  color: var(--muted);
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cell-options-item {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 8px 9px;
+
+  border: 0;
+  border-radius: 6px;
+
+  background: transparent;
+
+  color: var(--text);
+
+  text-align: left;
+
+  font: inherit;
 
   cursor: pointer;
-  opacity: 0.55;
 }
 
-.uncertain-toggle:hover {
-  opacity: 1;
-  background: #d9dee5;
+.cell-options-item:hover:not(:disabled) {
+  background: var(--soft);
 }
 
-.uncertain-toggle.active {
-  background: #f4d77c;
-  color: #5d4b00;
-  opacity: 1;
+.cell-options-item:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
-.uncertain-toggle[hidden] {
-  display: none;
+.cell-options-item.danger {
+  color: #a52b2b;
+}
+
+.cell-options-check {
+  width: 16px;
+
+  font-weight: 700;
+
+  text-align: center;
+}
+
+.cell-options-separator {
+  height: 1px;
+
+  margin: 5px 4px;
+
+  background: var(--border);
 }
 
 .member-cell.uncertain {
   font-size: 22px;
+}
+
+.current-user-column {
+  background: #edf5ff;
+}
+
+.member-head.current-user-column {
+  background: #dcecff;
+  font-weight: 700;
+}
+
+/* keep highlight when hovering editable cells */
+.current-user-column .member-cell.editable:hover {
+  background: #dfeeff;
+}
+
+/*
+|--------------------------------------------------------------------------
+| View / Edit mode
+|--------------------------------------------------------------------------
+*/
+
+.edit-mode-toggle {
+  white-space: nowrap;
+}
+
+/*
+| Default = viewing.
+*/
+
+body:not(.editing-mode) .member-cell.editable {
+  cursor: default;
+}
+
+body:not(.editing-mode) .member-cell.editable:hover {
+  background: transparent;
+}
+
+body:not(.editing-mode) .activity-editable {
+  cursor: default;
+}
+
+body:not(.editing-mode) .activity-editable:hover {
+  background: transparent;
+}
+
+/*
+| Editing mode.
+*/
+
+body.editing-mode .member-cell.editable {
+  cursor: pointer;
+}
+
+body.editing-mode .member-cell.editable:hover {
+  background: #edf3f8;
+}
+
+body.editing-mode .activity-editable {
+  cursor: text;
+}
+
+body.editing-mode .activity-editable:hover {
+  background: #f7f9fb;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Make it visually obvious that editing is enabled
+|--------------------------------------------------------------------------
+*/
+
+body.editing-mode .edit-mode-toggle {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+body.editing-mode .schedule-wrap {
+  outline: 2px solid rgba(47, 93, 138, 0.18);
+  outline-offset: 2px;
+}
+
+.birthday-cell,
+.name-day-cell {
+  position: relative;
+}
+
+.birthday-cell::after {
+  content: "🎂";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.name-day-cell::before {
+  content: "🌼";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 12px;
+  pointer-events: none;
 }
