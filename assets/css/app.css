@@ -75,7 +75,7 @@ a:hover {
 }
 .page {
   padding: 20px;
-  overflow-x: auto;
+  overflow-x: visible;
 }
 .legend {
   max-width: 100%;
@@ -103,8 +103,6 @@ a:hover {
   min-width: 100%;
   background: white;
   border: 1px solid var(--border);
-  /* overflow-x: auto; */
-  overflow-y: visible;
 }
 .schedule-table {
   border-collapse: collapse;
@@ -378,8 +376,52 @@ select {
 }
 .schedule-table thead {
   position: sticky;
-
   top: 72px; /* height of your sticky .topbar */
-
   z-index: 20;
+}
+
+.availability-td {
+  position: relative;
+}
+
+.uncertain-toggle {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+
+  width: 16px;
+  height: 16px;
+
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+
+  background: #e8ebef;
+  color: #68717c;
+
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.uncertain-toggle:hover {
+  opacity: 1;
+  background: #d9dee5;
+}
+
+.uncertain-toggle.active {
+  background: #f4d77c;
+  color: #5d4b00;
+  opacity: 1;
+}
+
+.uncertain-toggle[hidden] {
+  display: none;
+}
+
+.member-cell.uncertain {
+  font-size: 22px;
 }

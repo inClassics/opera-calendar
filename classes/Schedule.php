@@ -102,7 +102,7 @@ class Schedule
     public function availabilityForMonth(DateTime $firstDay, DateTime $lastDay): array
     {
         $stmt = $this->pdo->prepare(
-            "SELECT user_id, schedule_date, period, status
+            "SELECT user_id, schedule_date, period, status, uncertain
              FROM availability
              WHERE schedule_date BETWEEN ? AND ?"
         );
@@ -110,7 +110,13 @@ class Schedule
 
         $availability = [];
         foreach ($stmt->fetchAll() as $row) {
-            $availability[$row['schedule_date']][$row['period']][(int) $row['user_id']] = $row['status'];
+            $availability[$row['schedule_date']][$row['period']][(int) $row['user_id']] = [
+
+                'status' => $row['status'],
+
+                'uncertain' => (bool) $row['uncertain'],
+
+            ];
         }
 
         return $availability;
@@ -292,5 +298,32 @@ class Schedule
         }
 
         return $slots;
+    }
+
+    public function setUncertain(
+        int $userId,
+        string $date,
+        string $period,
+        bool $uncertain,
+        int $updatedBy
+    ): void {
+        $stmt = $this->pdo->prepare("
+        UPDATE availability
+        SET uncertain = ?,
+            updated_by = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ?
+          AND schedule_date = ?
+          AND period = ?
+          AND status IS NOT NULL
+    ");
+
+        $stmt->execute([
+            $uncertain ? 1 : 0,
+            $updatedBy,
+            $userId,
+            $date,
+            $period
+        ]);
     }
 }
