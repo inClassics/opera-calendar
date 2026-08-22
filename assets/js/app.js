@@ -5,23 +5,11 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   | Editing mode
   |--------------------------------------------------------------------------
-  |
-  | Every page load starts safely in View mode.
-  |
   */
 
   let editingMode = false;
 
   const editModeToggle = document.getElementById("edit-mode-toggle");
-
-  /*
-  |--------------------------------------------------------------------------
-  | Context menu close function placeholder
-  |--------------------------------------------------------------------------
-  |
-  | Defined properly later after the menu is created.
-  |
-  */
 
   let closeMenu = () => {};
 
@@ -46,16 +34,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!editingMode) {
         closeMenu();
 
-        /*
-          |--------------------------------------------------------------------------
-          | If an admin activity input happens to be open, finish it
-          |--------------------------------------------------------------------------
-          */
-
-        const openInput = document.querySelector(".activity-input");
-
-        if (openInput) {
-          openInput.blur();
+        if (!activityEditor.hidden) {
+          closeActivityEditor();
         }
       }
     });
@@ -65,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /*
   |--------------------------------------------------------------------------
-  | Render availability cell
+  | Render availability
   |--------------------------------------------------------------------------
   */
 
@@ -105,12 +85,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const previousUncertain = cell.dataset.uncertain === "1";
 
     cell.dataset.status = nextStatus;
-
-    /*
-    |--------------------------------------------------------------------------
-    | Clearing availability also clears uncertainty
-    |--------------------------------------------------------------------------
-    */
 
     if (nextStatus === "") {
       cell.dataset.uncertain = "0";
@@ -215,7 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /*
   |--------------------------------------------------------------------------
-  | Cell options menu
+  | Availability context menu
   |--------------------------------------------------------------------------
   */
 
@@ -263,6 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
     menu.hidden = false;
 
     menu.style.left = "0px";
+
     menu.style.top = "0px";
 
     const rect = menu.getBoundingClientRect();
@@ -270,6 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const padding = 8;
 
     let left = event.clientX;
+
     let top = event.clientY;
 
     if (left + rect.width + padding > window.innerWidth) {
@@ -296,12 +272,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const check = uncertainButton.querySelector(".cell-options-check");
 
-    /*
-    |--------------------------------------------------------------------------
-    | Can't make a blank cell uncertain
-    |--------------------------------------------------------------------------
-    */
-
     uncertainButton.disabled = status === "";
 
     uncertainButton.classList.toggle("selected", uncertain);
@@ -324,31 +294,11 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".availability-cell").forEach((cell) => {
     renderCell(cell);
 
-    /*
-      |--------------------------------------------------------------------------
-      | User does not have permission for this cell
-      |--------------------------------------------------------------------------
-      */
-
     if (!cell.classList.contains("editable")) {
       return;
     }
 
-    /*
-      |--------------------------------------------------------------------------
-      | Left click
-      |
-      | blank -> × -> • -> blank
-      |--------------------------------------------------------------------------
-      */
-
     cell.addEventListener("click", async () => {
-      /*
-          |--------------------------------------------------------------------------
-          | View mode = no editing
-          |--------------------------------------------------------------------------
-          */
-
       if (!editingMode) {
         return;
       }
@@ -365,15 +315,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       await saveAvailability(cell, next);
     });
-
-    /*
-      |--------------------------------------------------------------------------
-      | Right click
-      |
-      | View mode = normal browser menu
-      | Edit mode = custom availability menu
-      |--------------------------------------------------------------------------
-      */
 
     cell.addEventListener("contextmenu", (event) => {
       if (!editingMode) {
@@ -392,17 +333,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /*
   |--------------------------------------------------------------------------
-  | Context menu actions
+  | Availability menu actions
   |--------------------------------------------------------------------------
   */
 
   menu.addEventListener("click", async (event) => {
-    /*
-      |--------------------------------------------------------------------------
-      | Extra safeguard
-      |--------------------------------------------------------------------------
-      */
-
     if (!editingMode) {
       closeMenu();
       return;
@@ -422,12 +357,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    /*
-      |--------------------------------------------------------------------------
-      | Toggle uncertainty
-      |--------------------------------------------------------------------------
-      */
-
     if (action === "uncertain") {
       if ((cell.dataset.status || "") === "") {
         return;
@@ -442,12 +371,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    /*
-      |--------------------------------------------------------------------------
-      | Clear availability
-      |--------------------------------------------------------------------------
-      */
-
     if (action === "clear") {
       await saveAvailability(cell, "");
 
@@ -457,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /*
   |--------------------------------------------------------------------------
-  | Close context menu
+  | Close availability menu
   |--------------------------------------------------------------------------
   */
 
@@ -479,136 +402,350 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /*
   |--------------------------------------------------------------------------
-  | Admin activity editing
+  | Floating activity editor
+  |--------------------------------------------------------------------------
+  */
+
+  const activityEditor = document.createElement("div");
+
+  activityEditor.className = "activity-editor-overlay";
+
+  activityEditor.hidden = true;
+
+  activityEditor.innerHTML = `
+    <div
+      class="activity-editor-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="activity-editor-title"
+    >
+      <div class="activity-editor-header">
+
+        <div>
+          <div
+            class="activity-editor-title"
+            id="activity-editor-title"
+          >
+            Edit activity
+          </div>
+
+          <div class="activity-editor-meta"></div>
+        </div>
+
+        <button
+          type="button"
+          class="activity-editor-close"
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+      </div>
+
+      <div class="activity-editor-body">
+
+        <label class="activity-editor-label">
+          Activity
+
+          <textarea
+            class="activity-editor-textarea"
+            rows="7"
+            maxlength="255"
+            spellcheck="true"
+          ></textarea>
+        </label>
+
+        <div class="activity-editor-help">
+          You can use multiple lines.
+          <br>
+          Example:
+          <br>
+          <strong>11:00–14:00</strong>
+          <br>
+          Salome
+          <br>
+          (skatuves mēģinājums ar orķestri)
+        </div>
+
+      </div>
+
+      <div class="activity-editor-footer">
+
+        <button
+          type="button"
+          class="button activity-editor-cancel"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="button activity-editor-save"
+        >
+          Save
+        </button>
+
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(activityEditor);
+
+  const activityEditorTextarea = activityEditor.querySelector(".activity-editor-textarea");
+
+  const activityEditorMeta = activityEditor.querySelector(".activity-editor-meta");
+
+  const activityEditorSave = activityEditor.querySelector(".activity-editor-save");
+
+  const activityEditorCancel = activityEditor.querySelector(".activity-editor-cancel");
+
+  const activityEditorClose = activityEditor.querySelector(".activity-editor-close");
+
+  let activityEditorCell = null;
+
+  /*
+  |--------------------------------------------------------------------------
+  | Build clean activity text
+  |--------------------------------------------------------------------------
+  */
+
+  const getActivityText = (cell) => {
+    const time = cell.querySelector(".desktop-paper-activity-time")?.textContent?.trim() || "";
+
+    const title = cell.querySelector(".desktop-paper-activity-title")?.textContent?.trim() || "";
+
+    const details = cell.querySelector(".desktop-paper-activity-details")?.textContent?.trim() || "";
+
+    if (time || title || details) {
+      return [time, title, details].filter(Boolean).join("\n");
+    }
+
+    const textContainer = cell.querySelector(".desktop-paper-activity-text");
+
+    if (textContainer) {
+      return textContainer.textContent.replace(/\s+/g, " ").trim();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mobile fallback
+    |--------------------------------------------------------------------------
+    */
+
+    const clone = cell.cloneNode(true);
+
+    clone.querySelectorAll(".activity-point-editor").forEach((element) => element.remove());
+
+    return clone.textContent.replace(/\s+/g, " ").trim();
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | Open activity editor
+  |--------------------------------------------------------------------------
+  */
+
+  const openActivityEditor = (cell) => {
+    activityEditorCell = cell;
+
+    const activity = getActivityText(cell);
+
+    activityEditorTextarea.value = activity;
+
+    const date = cell.dataset.date || "";
+
+    const period = cell.dataset.period || "";
+
+    activityEditorMeta.textContent = [date, period ? period.charAt(0).toUpperCase() + period.slice(1) : ""].filter(Boolean).join(" · ");
+
+    activityEditor.hidden = false;
+
+    document.body.classList.add("activity-editor-open");
+
+    requestAnimationFrame(() => {
+      activityEditorTextarea.focus();
+
+      activityEditorTextarea.setSelectionRange(activityEditorTextarea.value.length, activityEditorTextarea.value.length);
+    });
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | Close activity editor
+  |--------------------------------------------------------------------------
+  */
+
+  const closeActivityEditor = () => {
+    activityEditor.hidden = true;
+
+    document.body.classList.remove("activity-editor-open");
+
+    activityEditorCell = null;
+
+    activityEditorTextarea.value = "";
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | Open editor when clicking activity
   |--------------------------------------------------------------------------
   */
 
   document.querySelectorAll(".activity-editable").forEach((cell) => {
-    cell.addEventListener("click", () => {
-      /*
-          |--------------------------------------------------------------------------
-          | Admin must explicitly enter Edit mode
-          |--------------------------------------------------------------------------
-          */
-
+    cell.addEventListener("click", (event) => {
       if (!editingMode) {
         return;
       }
 
-      if (cell.querySelector("input")) {
-        return;
-      }
-
-      closeMenu();
-
-      const currentText = cell.textContent.trim();
-
-      const input = document.createElement("input");
-
-      input.type = "text";
-      input.value = currentText;
-
-      input.maxLength = 255;
-
-      input.className = "activity-input";
-
-      cell.textContent = "";
-
-      cell.appendChild(input);
-
-      input.focus();
-      input.select();
-
-      let finished = false;
-
       /*
           |--------------------------------------------------------------------------
-          | Cancel editing
+          | Do not open editor when clicking points / R / P
           |--------------------------------------------------------------------------
           */
 
-      const restore = () => {
-        if (finished) {
-          return;
-        }
-
-        finished = true;
-
-        cell.textContent = currentText;
-      };
-
-      /*
-          |--------------------------------------------------------------------------
-          | Save activity
-          |--------------------------------------------------------------------------
-          */
-
-      const save = async () => {
-        if (finished) {
-          return;
-        }
-
-        finished = true;
-
-        const newText = input.value.trim();
-
-        const formData = new FormData();
-
-        formData.append("csrf_token", csrfToken);
-
-        formData.append("date", cell.dataset.date);
-
-        formData.append("period", cell.dataset.period);
-
-        formData.append("activity", newText);
-
-        try {
-          const response = await fetch("ajax/update-activity.php", {
-            method: "POST",
-            body: formData,
-          });
-
-          const result = await response.json();
-
-          if (!response.ok || !result.success) {
-            throw new Error(result.message || "Could not save activity.");
-          }
-
-          cell.textContent = result.activity;
-        } catch (error) {
-          cell.textContent = currentText;
-
-          alert(error.message);
-        }
-      };
-
-      input.addEventListener("blur", save, {
-        once: true,
-      });
-
-      input.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          input.blur();
-        }
-
-        if (event.key === "Escape") {
-          event.preventDefault();
-
-          restore();
-        }
-      });
-    });
-  });
-
-  document.querySelectorAll(".activity-editable").forEach((cell) => {
-    cell.addEventListener("contextmenu", async (event) => {
-      if (!editingMode) {
+      if (event.target.closest(".activity-point-editor")) {
         return;
       }
 
       event.preventDefault();
+      event.stopPropagation();
 
-      // open Activity options menu here
+      closeMenu();
+
+      openActivityEditor(cell);
     });
   });
+
+  /*
+  |--------------------------------------------------------------------------
+  | Save activity
+  |--------------------------------------------------------------------------
+  */
+
+  activityEditorSave.addEventListener("click", async () => {
+    if (!activityEditorCell) {
+      return;
+    }
+
+    const cell = activityEditorCell;
+
+    const activity = activityEditorTextarea.value.trim();
+
+    activityEditorSave.disabled = true;
+
+    activityEditorTextarea.disabled = true;
+
+    const formData = new FormData();
+
+    formData.append("csrf_token", csrfToken);
+
+    formData.append("date", cell.dataset.date);
+
+    formData.append("period", cell.dataset.period);
+
+    formData.append("activity", activity);
+
+    try {
+      const response = await fetch("ajax/update-activity.php", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Could not save activity.");
+      }
+
+      /*
+        |--------------------------------------------------------------------------
+        | Reload after changing text
+        |--------------------------------------------------------------------------
+        |
+        | This rebuilds the formatted vertical display.
+        |
+        */
+
+      window.location.reload();
+    } catch (error) {
+      alert(error.message);
+
+      activityEditorSave.disabled = false;
+
+      activityEditorTextarea.disabled = false;
+
+      activityEditorTextarea.focus();
+    }
+  });
+
+  /*
+  |--------------------------------------------------------------------------
+  | Cancel / close
+  |--------------------------------------------------------------------------
+  */
+
+  activityEditorCancel.addEventListener("click", closeActivityEditor);
+
+  activityEditorClose.addEventListener("click", closeActivityEditor);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Click outside dialog
+  |--------------------------------------------------------------------------
+  */
+
+  activityEditor.addEventListener("mousedown", (event) => {
+    if (event.target === activityEditor) {
+      closeActivityEditor();
+    }
+  });
+
+  /*
+  |--------------------------------------------------------------------------
+  | Keyboard
+  |--------------------------------------------------------------------------
+  */
+
+  document.addEventListener("keydown", (event) => {
+    if (activityEditor.hidden) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+
+      closeActivityEditor();
+
+      return;
+    }
+
+    /*
+      |--------------------------------------------------------------------------
+      | Cmd/Ctrl + Enter = Save
+      |--------------------------------------------------------------------------
+      */
+
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+
+      activityEditorSave.click();
+    }
+  });
+
+  /*
+  |--------------------------------------------------------------------------
+  | IMPORTANT
+  |--------------------------------------------------------------------------
+  |
+  | app.js does NOT handle right-click activity management.
+  |
+  | split-events.js owns:
+  |
+  | - Split
+  | - Edit split event
+  | - Add split event
+  | - Delete split event
+  | - Merge back
+  |
+  */
 });

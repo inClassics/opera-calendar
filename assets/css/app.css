@@ -583,3 +583,234 @@ body.editing-mode .schedule-wrap {
   font-size: 12px;
   pointer-events: none;
 }
+
+/*
+|--------------------------------------------------------------------------
+| Floating activity editor
+|--------------------------------------------------------------------------
+*/
+
+.activity-editor-overlay {
+  position: fixed;
+  z-index: 10000;
+
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+
+  background: rgba(21, 29, 38, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.activity-editor-overlay[hidden] {
+  display: none;
+}
+
+.activity-editor-dialog {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  border: 1px solid #cbd3dc;
+  border-radius: 12px;
+
+  background: #fff;
+
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Header
+|--------------------------------------------------------------------------
+*/
+
+.activity-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 18px 20px 14px;
+
+  border-bottom: 1px solid #e1e5e9;
+}
+
+.activity-editor-title {
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.activity-editor-meta {
+  margin-top: 3px;
+
+  color: #6d7782;
+
+  font-size: 12px;
+}
+
+.activity-editor-close {
+  width: 34px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: 0;
+  border-radius: 7px;
+
+  background: transparent;
+
+  color: #56616c;
+
+  font-size: 25px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.activity-editor-close:hover {
+  background: #f0f2f4;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Body
+|--------------------------------------------------------------------------
+*/
+
+.activity-editor-body {
+  padding: 20px;
+}
+
+.activity-editor-label {
+  display: block;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.activity-editor-textarea {
+  width: 100%;
+  min-height: 160px;
+
+  box-sizing: border-box;
+
+  margin-top: 7px;
+
+  padding: 12px 14px;
+
+  resize: vertical;
+
+  border: 1px solid #bbc5cf;
+  border-radius: 8px;
+
+  background: #fff;
+
+  color: #252c34;
+
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.activity-editor-textarea:focus {
+  outline: 3px solid rgba(47, 102, 150, 0.15);
+
+  border-color: #467aa8;
+}
+
+.activity-editor-help {
+  margin-top: 10px;
+
+  color: #7a848e;
+
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Footer
+|--------------------------------------------------------------------------
+*/
+
+.activity-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+
+  gap: 8px;
+
+  padding: 14px 20px;
+
+  border-top: 1px solid #e1e5e9;
+
+  background: #f7f8fa;
+}
+
+.activity-editor-save {
+  background: #32689a;
+  color: #fff;
+}
+
+.activity-editor-save:hover {
+  background: #285a87;
+}
+
+.activity-editor-save:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Calendar cursor while editing
+|--------------------------------------------------------------------------
+*/
+
+body.editing-mode .activity-editable {
+  cursor: pointer;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Mobile
+|--------------------------------------------------------------------------
+*/
+
+@media (max-width: 600px) {
+  .activity-editor-overlay {
+    padding: 12px;
+  }
+
+  .activity-editor-dialog {
+    width: 100%;
+  }
+
+  .activity-editor-textarea {
+    min-height: 190px;
+
+    font-size: 16px;
+  }
+
+  .activity-editor-footer {
+    flex-direction: column-reverse;
+  }
+
+  .activity-editor-footer .button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
