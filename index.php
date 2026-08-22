@@ -121,6 +121,7 @@ $csrf = csrf_token();
     <link rel="stylesheet" href="assets/css/app.css">
     <link rel="stylesheet" href="assets/css/mobile.css">
     <link rel="stylesheet" href="assets/css/split-events.css">
+    <link rel="stylesheet" href="assets/css/desktop-v3.css">
 </head>
 <body>
 <header class="topbar">
@@ -149,134 +150,7 @@ $csrf = csrf_token();
         <span class="muted">blank = unanswered</span>
     </div>
 
-    <div class="desktop-schedule">
-        <div class="schedule-wrap">
-            <table class="schedule-table">
-                <thead>
-                    <tr class="group-header">
-                        <th colspan="<?= count($members) + 1 ?>">Evening</th>
-                        <th rowspan="2" class="date-head">Date</th>
-                        <th colspan="<?= count($members) + 1 ?>">Morning</th>
-                    </tr>
-                    <tr class="names-header">
-                        <?php foreach ($membersReversed as $member): ?>
-                            <?php $isCurrentUser = (int) $member['id'] === current_user_id(); ?>
-                            <th class="member-head <?= $isCurrentUser ? 'current-user-column' : '' ?>"><span><?= e($member['name']) ?></span></th>
-                        <?php endforeach; ?>
-                        <th class="activity-head">Activity</th>
-                        <th class="activity-head">Activity</th>
-                        <?php foreach ($membersReversed as $member): ?>
-                            <?php $isCurrentUser = (int) $member['id'] === current_user_id(); ?>
-                            <th class="member-head <?= $isCurrentUser ? 'current-user-column' : '' ?>"><span><?= e($member['name']) ?></span></th>
-                        <?php endforeach; ?>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php foreach ($days as $day): ?>
-                    <?php if ($day['weekday'] === 'Monday'): ?>
-                        <tr class="points-row">
-                            <?php foreach ($membersReversed as $member): ?>
-                                <?php
-                                $userId = (int) $member['id'];
-                                $isCurrentUser = $userId === current_user_id();
-                                $weekPoints = $weeklyEveningPoints[$day['date']][$userId] ?? $member['evening_starting_points'] ?? 0;
-                                ?>
-                                <td class="points-cell <?= $isCurrentUser ? 'current-user-column' : '' ?>"><?= (int) $weekPoints ?></td>
-                            <?php endforeach; ?>
-                            <td class="points-label">Points</td>
-                            <td class="points-week">Week</td>
-                            <td class="points-label">Points</td>
-                            <?php foreach ($membersReversed as $member): ?>
-                                <?php $userId = (int) $member['id']; $isCurrentUser = $userId === current_user_id(); ?>
-                                <td class="points-cell <?= $isCurrentUser ? 'current-user-column' : '' ?>"><?= (int) ($runningMorningPoints[$userId] ?? 0) ?></td>
-                            <?php endforeach; ?>
-                        </tr>
-                    <?php endif; ?>
-
-                    <?php
-                    $eveningRows = slotEvents($day, 'evening', $splitEvents);
-                    $morningRows = slotEvents($day, 'morning', $splitEvents);
-                    $rowCount = max(count($eveningRows), count($morningRows));
-                    ?>
-
-                    <?php for ($rowIndex = 0; $rowIndex < $rowCount; $rowIndex++): ?>
-                        <?php
-                        $eveningEvent = $eveningRows[$rowIndex] ?? null;
-                        $morningEvent = $morningRows[$rowIndex] ?? null;
-                        $rowClasses = [];
-                        if ($rowCount > 1) $rowClasses[] = 'split-row';
-                        if ($day['weekday'] === 'Sunday' && $rowIndex === $rowCount - 1) $rowClasses[] = 'week-end';
-                        ?>
-                        <tr class="<?= e(implode(' ', $rowClasses)) ?>">
-                            <?php if ($eveningEvent): ?>
-                                <?php $eveningEventId = $eveningEvent['id'] !== null ? (int) $eveningEvent['id'] : null; ?>
-                                <?php foreach ($membersReversed as $member): ?>
-                                    <?php
-                                    $userId = (int) $member['id'];
-                                    $item = $eveningEventId
-                                        ? ($splitAvailability[$eveningEventId][$userId] ?? ['status' => '', 'uncertain' => false])
-                                        : ($availability[$day['date']]['evening'][$userId] ?? ['status' => '', 'uncertain' => false]);
-                                    $status = $item['status'] ?? '';
-                                    $uncertain = !empty($item['uncertain']);
-                                    $editable = is_admin() || $userId === current_user_id();
-                                    $isCurrentUser = $userId === current_user_id();
-                                    $specialDayClass = getSpecialDayClass($member, $day['date']);
-                                    ?>
-                                    <td class="availability-td <?= $isCurrentUser ? 'current-user-column' : '' ?> <?= e($specialDayClass) ?>">
-                                        <?php if ($eveningEventId): ?>
-                                            <button type="button" class="member-cell split-availability-cell <?= $editable ? 'editable' : '' ?>" data-split-event-id="<?= $eveningEventId ?>" data-user-id="<?= $userId ?>" data-status="<?= e($status) ?>" data-uncertain="<?= $uncertain ? '1' : '0' ?>" <?= !$editable ? 'disabled' : '' ?>></button>
-                                        <?php else: ?>
-                                            <button type="button" class="member-cell availability-cell <?= $editable ? 'editable' : '' ?>" data-user-id="<?= $userId ?>" data-date="<?= e($day['date']) ?>" data-period="evening" data-status="<?= e($status) ?>" data-uncertain="<?= $uncertain ? '1' : '0' ?>" <?= !$editable ? 'disabled' : '' ?>></button>
-                                        <?php endif; ?>
-                                    </td>
-                                <?php endforeach; ?>
-                                <td class="activity-cell evening-activity <?= (!$eveningEventId && is_admin()) ? 'activity-editable' : '' ?> <?= $eveningEventId ? 'split-activity-cell' : '' ?>" data-date="<?= e($day['date']) ?>" data-period="evening" data-split-event-id="<?= $eveningEventId ?: '' ?>"><?= e($eveningEvent['activity']) ?></td>
-                            <?php else: ?>
-                                <?php foreach ($membersReversed as $member): ?><td class="availability-td split-empty-cell"></td><?php endforeach; ?>
-                                <td class="activity-cell split-empty-cell"></td>
-                            <?php endif; ?>
-
-                            <?php if ($rowIndex === 0): ?>
-                                <td class="date-cell" rowspan="<?= $rowCount ?>">
-                                    <div class="day-number"><?= (int) $day['day'] ?></div>
-                                    <div class="weekday"><?= e($day['weekday_short']) ?></div>
-                                </td>
-                            <?php endif; ?>
-
-                            <?php if ($morningEvent): ?>
-                                <?php $morningEventId = $morningEvent['id'] !== null ? (int) $morningEvent['id'] : null; ?>
-                                <td class="activity-cell morning-activity <?= (!$morningEventId && is_admin()) ? 'activity-editable' : '' ?> <?= $morningEventId ? 'split-activity-cell' : '' ?>" data-date="<?= e($day['date']) ?>" data-period="morning" data-split-event-id="<?= $morningEventId ?: '' ?>"><?= e($morningEvent['activity']) ?></td>
-                                <?php foreach ($membersReversed as $member): ?>
-                                    <?php
-                                    $userId = (int) $member['id'];
-                                    $item = $morningEventId
-                                        ? ($splitAvailability[$morningEventId][$userId] ?? ['status' => '', 'uncertain' => false])
-                                        : ($availability[$day['date']]['morning'][$userId] ?? ['status' => '', 'uncertain' => false]);
-                                    $status = $item['status'] ?? '';
-                                    $uncertain = !empty($item['uncertain']);
-                                    $editable = is_admin() || $userId === current_user_id();
-                                    $isCurrentUser = $userId === current_user_id();
-                                    $specialDayClass = getSpecialDayClass($member, $day['date']);
-                                    ?>
-                                    <td class="availability-td <?= $isCurrentUser ? 'current-user-column' : '' ?> <?= e($specialDayClass) ?>">
-                                        <?php if ($morningEventId): ?>
-                                            <button type="button" class="member-cell split-availability-cell <?= $editable ? 'editable' : '' ?>" data-split-event-id="<?= $morningEventId ?>" data-user-id="<?= $userId ?>" data-status="<?= e($status) ?>" data-uncertain="<?= $uncertain ? '1' : '0' ?>" <?= !$editable ? 'disabled' : '' ?>></button>
-                                        <?php else: ?>
-                                            <button type="button" class="member-cell availability-cell <?= $editable ? 'editable' : '' ?>" data-user-id="<?= $userId ?>" data-date="<?= e($day['date']) ?>" data-period="morning" data-status="<?= e($status) ?>" data-uncertain="<?= $uncertain ? '1' : '0' ?>" <?= !$editable ? 'disabled' : '' ?>></button>
-                                        <?php endif; ?>
-                                    </td>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <td class="activity-cell split-empty-cell"></td>
-                                <?php foreach ($membersReversed as $member): ?><td class="availability-td split-empty-cell"></td><?php endforeach; ?>
-                            <?php endif; ?>
-                        </tr>
-                    <?php endfor; ?>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <?php require __DIR__ . '/views/desktop-schedule-v3.php'; ?>
 
     <div class="mobile-schedule">
         <div class="mobile-legend">

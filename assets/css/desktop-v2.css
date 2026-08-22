@@ -1,0 +1,260 @@
+/*
+|--------------------------------------------------------------------------
+| Desktop schedule v2 — paper-style week matrix
+|--------------------------------------------------------------------------
+*/
+
+.desktop-schedule-v2 {
+  display: block;
+  min-width: 980px;
+}
+
+.desktop-week {
+  --name-width: 110px;
+  --points-width: 50px;
+
+  margin: 0 0 22px;
+  border: 1px solid #cfd5dc;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .03);
+}
+
+.desktop-week-grid {
+  display: grid;
+  grid-template-columns:
+    var(--name-width)
+    var(--points-width)
+    repeat(7, minmax(105px, 1fr));
+}
+
+.desktop-week-grid > * {
+  min-width: 0;
+  border-right: 1px solid #d9dee4;
+}
+
+.desktop-week-grid > *:last-child {
+  border-right: 0;
+}
+
+.desktop-week-names {
+  position: sticky;
+  top: 74px;
+  z-index: 25;
+  background: #edf1f6;
+  border-bottom: 1px solid #aab3be;
+}
+
+.desktop-side-label,
+.desktop-points-label,
+.desktop-day-name {
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.desktop-side-label {
+  justify-content: flex-start;
+  padding-left: 10px;
+}
+
+.desktop-member-row {
+  min-height: 38px;
+  border-bottom: 1px solid #e0e4e8;
+}
+
+.desktop-member-row:last-child {
+  border-bottom: 0;
+}
+
+.desktop-member-name,
+.desktop-member-points {
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+  font-size: 12px;
+  background: #fafbfc;
+}
+
+.desktop-member-name {
+  font-weight: 650;
+}
+
+.desktop-member-points {
+  justify-content: center;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.desktop-day-availability {
+  position: relative;
+  min-height: 38px;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
+}
+
+.desktop-day-availability > .desktop-matrix-cell {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  height: 38px;
+  border-radius: 0;
+  border: 0;
+  border-right: 1px dashed #e1e5e9;
+}
+
+.desktop-day-availability > .desktop-matrix-cell:last-child {
+  border-right: 0;
+}
+
+.desktop-matrix-cell {
+  font-size: 22px;
+}
+
+.current-user-desktop-row .desktop-member-name,
+.current-user-desktop-row .desktop-member-points,
+.current-user-desktop-row .desktop-day-availability {
+  background: #eaf3ff;
+}
+
+.desktop-period-morning {
+  border-bottom: 2px solid #aab4bf;
+}
+
+.desktop-period-evening {
+  border-top: 2px solid #aab4bf;
+}
+
+.desktop-event-row {
+  background: #f8fafc;
+  border-bottom: 1px solid #cbd2da;
+}
+
+.desktop-event-row-evening {
+  border-top: 1px solid #cbd2da;
+  border-bottom: 0;
+}
+
+.desktop-event-side-label,
+.desktop-event-points-spacer {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #596575;
+}
+
+.desktop-event-points-spacer {
+  padding: 0;
+}
+
+.desktop-day-events {
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.desktop-event-item {
+  flex: 1 1 auto;
+  min-height: 35px;
+  padding: 7px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-line;
+  font-size: 11px;
+  line-height: 1.25;
+  border-bottom: 1px dashed #d8dde3;
+}
+
+.desktop-event-item:last-child {
+  border-bottom: 0;
+}
+
+.desktop-date-axis {
+  background: #dfe6ee;
+  border-top: 2px solid #8f9ba8;
+  border-bottom: 2px solid #8f9ba8;
+}
+
+.desktop-date-axis-label,
+.desktop-date-axis-spacer {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  padding: 7px 9px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.desktop-date-axis-spacer {
+  padding: 0;
+}
+
+.desktop-date-box {
+  min-height: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.desktop-date-box.is-today {
+  background: #cfe5ff;
+  box-shadow: inset 0 0 0 2px #5c91c6;
+}
+
+.desktop-date-number {
+  font-size: 21px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.desktop-date-weekday {
+  margin-top: 4px;
+  font-size: 9px;
+  color: #5f6975;
+  font-weight: 700;
+}
+
+.desktop-day-availability.birthday-cell::after,
+.desktop-day-availability.name-day-cell::before {
+  z-index: 4;
+  top: 1px;
+  font-size: 10px;
+}
+
+/* Admin editing cues */
+
+body.editing-mode .desktop-event-item.activity-editable,
+body.editing-mode .desktop-event-item.split-activity-cell {
+  cursor: pointer;
+}
+
+body.editing-mode .desktop-event-item.activity-editable:hover,
+body.editing-mode .desktop-event-item.split-activity-cell:hover {
+  background: #eef5fc;
+}
+
+/* Keep the paper matrix as desktop-only. */
+@media (max-width: 900px) {
+  .desktop-schedule-v2 {
+    display: none !important;
+  }
+}

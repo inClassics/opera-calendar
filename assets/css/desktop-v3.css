@@ -1,0 +1,470 @@
+/*
+|--------------------------------------------------------------------------
+| Desktop schedule v3
+|--------------------------------------------------------------------------
+|
+| Designed so a complete Monday-Sunday week fits the desktop viewport.
+| Morning is on top; evening is below the central date axis.
+|
+*/
+
+.desktop-schedule-v3 {
+  display: block;
+  width: 100%;
+}
+
+.desktop-v3-week {
+  --roster-width: clamp(120px, 9vw, 165px);
+  --week-gap: 28px;
+  --member-row-height: clamp(20px, 2.45vh, 27px);
+  --event-label-height: 192px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 var(--week-gap);
+  background: #fff;
+  border: 1px solid #cbd2da;
+  border-radius: 9px;
+  overflow: hidden;
+  box-shadow: 0 2px 7px rgba(23, 35, 48, 0.07);
+
+  /* One week remains compact enough to see as a complete block. */
+  min-height: min(720px, calc(100vh - 112px));
+}
+
+.desktop-v3-week + .desktop-v3-week {
+  margin-top: 36px;
+  border-top: 4px solid #7d8996;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Week header
+|--------------------------------------------------------------------------
+*/
+
+.desktop-v3-week-header {
+  display: grid;
+  grid-template-columns: var(--roster-width) minmax(0, 1fr);
+  background: #f4f6f8;
+  border-bottom: 1px solid #cbd2da;
+}
+
+.desktop-v3-week-number {
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #5d6875;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-right: 1px solid #d7dce3;
+}
+
+.desktop-v3-day-headings {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.desktop-v3-day-heading {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 5px 4px;
+  border-right: 1px solid #d7dce3;
+  font-size: 10px;
+}
+
+.desktop-v3-day-heading:last-child {
+  border-right: 0;
+}
+
+.desktop-v3-day-heading span {
+  color: #6f7782;
+}
+
+.desktop-v3-day-heading.is-weekend {
+  background: #faf8f3;
+}
+
+.desktop-v3-day-heading.is-today::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--accent);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Morning / Evening body
+|--------------------------------------------------------------------------
+*/
+
+.desktop-v3-period {
+  display: grid;
+  grid-template-columns: var(--roster-width) minmax(0, 1fr);
+}
+
+.desktop-v3-period-morning {
+  background: #fcfdf8;
+}
+
+.desktop-v3-period-evening {
+  background: #f8fbfe;
+}
+
+.desktop-v3-roster {
+  border-right: 1px solid #cbd2da;
+}
+
+.desktop-v3-period-title {
+  height: var(--event-label-height);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 9px 10px;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.desktop-v3-period-morning .desktop-v3-period-title {
+  color: #466626;
+  background: #f4f8e9;
+}
+
+.desktop-v3-period-evening .desktop-v3-period-title {
+  color: #365f89;
+  background: #edf4fb;
+}
+
+.desktop-v3-roster-heading {
+  height: 23px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  align-items: center;
+  padding: 0 7px;
+  border-top: 1px solid #d7dce3;
+  border-bottom: 1px solid #d7dce3;
+  color: #707984;
+  font-size: 9px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.desktop-v3-roster-heading span:last-child {
+  text-align: center;
+}
+
+.desktop-v3-roster-row {
+  height: var(--member-row-height);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  align-items: center;
+  padding: 0 7px;
+  border-bottom: 1px solid #e5e8ec;
+  font-size: 11px;
+}
+
+.desktop-v3-roster-row:last-child {
+  border-bottom: 0;
+}
+
+.desktop-v3-roster-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 650;
+}
+
+.desktop-v3-roster-points {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.current-user-desktop-row {
+  background: #eaf3ff;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Seven day columns
+|--------------------------------------------------------------------------
+*/
+
+.desktop-v3-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.desktop-v3-day {
+  min-width: 0;
+  border-right: 1px solid #d7dce3;
+}
+
+.desktop-v3-day:last-child {
+  border-right: 0;
+}
+
+.desktop-v3-day.is-weekend {
+  background: rgba(244, 239, 226, 0.28);
+}
+
+.desktop-v3-events {
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(var(--event-count), minmax(0, 1fr));
+  min-width: 0;
+}
+
+.desktop-v3-event-column {
+  min-width: 0;
+  display: grid;
+  grid-template-rows:
+    var(--event-label-height)
+    23px
+    repeat(7, var(--member-row-height));
+  border-right: 1px dashed #dfe3e8;
+}
+
+.desktop-v3-event-column:last-child {
+  border-right: 0;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Vertical event title
+|--------------------------------------------------------------------------
+*/
+
+.desktop-v3-event-label {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: var(--event-label-height);
+  min-height: var(--event-label-height);
+  padding: 4px 3px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  text-align: initial !important;
+  border-bottom: 1px solid #d7dce3;
+  font-size: 16px !important;
+  line-height: 1.05 !important;
+}
+
+.desktop-v3-event-label-inner {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  max-height: calc(var(--event-label-height) - 8px);
+  overflow: hidden;
+  white-space: normal;
+  text-overflow: ellipsis;
+}
+
+.desktop-v3-event-label.is-empty-event {
+  color: #a5adb6;
+}
+
+body.editing-mode .desktop-v3-event-label.activity-editable,
+body.editing-mode .desktop-v3-event-label.split-activity-cell {
+  cursor: pointer;
+}
+
+body.editing-mode .desktop-v3-event-label.activity-editable:hover,
+body.editing-mode .desktop-v3-event-label.split-activity-cell:hover {
+  background: #e9f2fb;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Availability marks
+|--------------------------------------------------------------------------
+*/
+
+.desktop-v3-event-availability {
+  display: contents;
+}
+
+.desktop-v3-mark-wrap {
+  position: relative;
+  height: var(--member-row-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid #e5e8ec;
+}
+
+.desktop-v3-mark-wrap::before {
+  /* Empty pseudo element keeps existing special-day before usable. */
+}
+
+.desktop-v3-mark {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0;
+  padding: 0;
+  font-size: 18px !important;
+  line-height: 1;
+}
+
+.desktop-v3-mark.unavailable {
+  font-size: 21px !important;
+}
+
+.desktop-v3-mark.uncertain {
+  font-size: 15px !important;
+}
+
+.desktop-v3-mark-wrap.current-user-column {
+  background: #eaf3ff;
+}
+
+.desktop-v3-mark-wrap.birthday-cell::after,
+.desktop-v3-mark-wrap.name-day-cell::before {
+  font-size: 8px;
+  top: 0;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Date axis
+|--------------------------------------------------------------------------
+*/
+
+.desktop-v3-date-axis {
+  display: grid;
+  grid-template-columns: var(--roster-width) minmax(0, 1fr);
+  min-height: 42px;
+  background: #e6ebf1;
+  border-top: 2px solid #8995a2;
+  border-bottom: 2px solid #8995a2;
+}
+
+.desktop-v3-date-label {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-right: 1px solid #aab3bd;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.desktop-v3-date-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.desktop-v3-date-cell {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #aab3bd;
+}
+
+.desktop-v3-date-cell:last-child {
+  border-right: 0;
+}
+
+.desktop-v3-date-cell strong {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.desktop-v3-date-cell span {
+  margin-top: 2px;
+  font-size: 8px;
+  color: #606a76;
+}
+
+.desktop-v3-date-cell.is-today {
+  background: #cfe5ff;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Visual break between weeks
+|--------------------------------------------------------------------------
+*/
+
+.desktop-v3-week::after {
+  content: "";
+  display: block;
+  height: 5px;
+  background: linear-gradient(90deg, #758391 0%, #a6afb8 50%, #758391 100%);
+}
+
+.desktop-v3-week:last-child::after {
+  display: none;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Fit week to desktop viewport
+|--------------------------------------------------------------------------
+*/
+
+@media (min-width: 901px) {
+  .page {
+    padding: 12px 14px 24px;
+  }
+
+  .desktop-legend {
+    margin-bottom: 8px;
+  }
+
+  .desktop-schedule-v3 {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .desktop-v3-week {
+    width: 100%;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 800px) {
+  .desktop-v3-week {
+    --member-row-height: 30px;
+    --event-label-height: 192px;
+  }
+
+  .desktop-v3-period-title {
+    font-size: 10px;
+  }
+
+  .desktop-v3-event-label {
+    font-size: 16px !important;
+  }
+
+  .desktop-v3-date-axis {
+    min-height: 34px;
+  }
+
+  .desktop-v3-date-cell strong {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 900px) {
+  .desktop-schedule-v3 {
+    display: none !important;
+  }
+}
