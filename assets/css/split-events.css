@@ -1,0 +1,77 @@
+.schedule-table tbody tr.split-row td {
+  height: 50px;
+}
+
+.schedule-table tbody tr.split-row:not(.week-end) td {
+  border-bottom-color: #c9d0d8;
+}
+
+.split-activity-cell {
+  background: #fbfcfe;
+}
+
+.split-empty-cell {
+  background: #fafbfc;
+}
+
+.date-cell[rowspan] {
+  vertical-align: middle;
+}
+
+body.editing-mode .activity-editable {
+  position: relative;
+}
+
+body.editing-mode .activity-editable::after {
+  content: "⋯";
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 13px;
+  color: #87919d;
+  pointer-events: none;
+}
+
+.activity-options-menu {
+  width: 230px;
+}
+
+@media (max-width: 900px) {
+  .mobile-event-block + .mobile-event-block {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 2px solid #d8dee6;
+  }
+
+  .mobile-event-block.is-split-event .mobile-activity {
+    background: #edf3f8;
+    font-weight: 600;
+  }
+
+  .split-activity-cell::after {
+    content: none !important;
+  }
+}
+
+
+body.editing-mode .split-activity-cell {
+  cursor: context-menu;
+}
+
+body.editing-mode .split-activity-cell:hover {
+  background: #eef4f9;
+}
+
+body.editing-mode .split-activity-cell::after {
+  content: "⋯";
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  color: #87919d;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.split-activity-cell {
+  position: relative;
+}
