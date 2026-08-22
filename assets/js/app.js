@@ -599,4 +599,16 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   });
+
+  document.querySelectorAll(".activity-editable").forEach((cell) => {
+    cell.addEventListener("contextmenu", async (event) => {
+      if (!editingMode) {
+        return;
+      }
+
+      event.preventDefault();
+
+      // open Activity options menu here
+    });
+  });
 });

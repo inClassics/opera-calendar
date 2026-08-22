@@ -61,6 +61,36 @@ $context = $scheduleRepository->monthContext(
 );
 
 $days = $scheduleRepository->daysForMonth($context['firstDay'], $context['lastDay']);
+
+/*
+|--------------------------------------------------------------------------
+| Mobile visible days
+|--------------------------------------------------------------------------
+|
+| On mobile, hide everything before the Monday of the current week.
+|
+*/
+
+$today = new DateTime('today');
+
+$currentWeekStart = clone $today;
+
+if ((int) $currentWeekStart->format('N') !== 1) {
+    $currentWeekStart->modify('monday this week');
+}
+
+$mobileDays = array_values(
+    array_filter(
+        $days,
+        function ($day) use ($currentWeekStart) {
+
+            $dayDate =
+                new DateTime($day['date']);
+
+            return $dayDate >= $currentWeekStart;
+        }
+    )
+);
 $availability = $scheduleRepository->availabilityForMonth($context['firstDay'], $context['lastDay']);
 $pointsAvailability = $scheduleRepository->availabilityForMonth($seasonStartDate, $context['lastDay']);
 
@@ -224,7 +254,7 @@ $csrf = csrf_token();
                 <span class="muted">? uncertain</span>
             </div>
 
-            <?php foreach ($days as $day): ?>
+            <?php foreach ($mobileDays as $day): ?>
                 <?php if ($day['weekday'] === 'Monday'): ?>
                     <section class="mobile-points-card">
                         <div class="mobile-week-title">Week of <?= e((new DateTime($day['date']))->format('j M')) ?></div>
@@ -262,7 +292,7 @@ $csrf = csrf_token();
                     </header>
 
                     <div class="mobile-session-grid">
-                        <?php foreach (['evening' => 'Evening', 'morning' => 'Morning'] as $period => $label): ?>
+                        <?php foreach (['morning' => 'Morning', 'evening' => 'Evening'] as $period => $label): ?>
                             <?php $activity = $period === 'evening' ? $day['evening'] : $day['morning']; ?>
                             <section class="mobile-session">
                                 <div class="mobile-session-heading"><span><?= $period === 'evening' ? '🌙' : '☀️' ?></span><strong><?= e($label) ?></strong></div>

@@ -326,4 +326,285 @@ class Schedule
             $period
         ]);
     }
+
+    public function splitEventsForMonth(
+        DateTime $firstDay,
+        DateTime $lastDay
+    ): array {
+        $stmt = $this->pdo->prepare("
+        SELECT
+            id,
+            schedule_date,
+            period,
+            activity,
+            sort_order
+        FROM schedule_split_events
+        WHERE schedule_date BETWEEN ? AND ?
+        ORDER BY
+            schedule_date ASC,
+            period ASC,
+            sort_order ASC,
+            id ASC
+    ");
+
+        $stmt->execute([
+            $firstDay->format('Y-m-d'),
+            $lastDay->format('Y-m-d')
+        ]);
+
+        $result = [];
+
+        foreach ($stmt->fetchAll() as $row) {
+            $result[$row['schedule_date']][$row['period']][] = [
+                'id' => (int) $row['id'],
+                'activity' => $row['activity'],
+                'sort_order' => (int) $row['sort_order'],
+            ];
+        }
+
+        return $result;
+    }
+
+    public function splitAvailabilityForMonth(
+        DateTime $firstDay,
+        DateTime $lastDay
+    ): array {
+        $stmt = $this->pdo->prepare("
+        SELECT
+            sa.split_event_id,
+            sa.user_id,
+            sa.status,
+            sa.uncertain
+        FROM split_availability sa
+        INNER JOIN schedule_split_events se
+            ON se.id = sa.split_event_id
+        WHERE se.schedule_date BETWEEN ? AND ?
+    ");
+
+        $stmt->execute([
+            $firstDay->format('Y-m-d'),
+            $lastDay->format('Y-m-d')
+        ]);
+
+        $result = [];
+
+        foreach ($stmt->fetchAll() as $row) {
+            $result[(int) $row['split_event_id']][(int) $row['user_id']] = [
+                'status' => $row['status'],
+                'uncertain' => (bool) $row['uncertain'],
+            ];
+        }
+
+        return $result;
+    }
+
+    public function splitSlot(
+        string $date,
+        string $period,
+        string $activity,
+        int $userId
+    ): array {
+        /*
+    |--------------------------------------------------------------------------
+    | Already split?
+    |--------------------------------------------------------------------------
+    */
+
+        $stmt = $this->pdo->prepare("
+        SELECT id
+        FROM schedule_split_events
+        WHERE schedule_date = ?
+          AND period = ?
+        LIMIT 1
+    ");
+
+        $stmt->execute([
+            $date,
+            $period
+        ]);
+
+        if ($stmt->fetch()) {
+            throw new RuntimeException(
+                'This slot is already split.'
+            );
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Split the current activity on line breaks
+    |--------------------------------------------------------------------------
+    */
+
+        $lines = preg_split(
+            '/\R+/',
+            trim($activity)
+        );
+
+        $lines = array_values(
+            array_filter(
+                array_map(
+                    'trim',
+                    $lines
+                ),
+                static fn($line) => $line !== ''
+            )
+        );
+
+        if (count($lines) < 2) {
+            throw new RuntimeException(
+                'At least two activities are required to split this slot.'
+            );
+        }
+
+        $this->pdo->beginTransaction();
+
+        try {
+
+            $createdIds = [];
+
+            $insertEvent =
+                $this->pdo->prepare("
+                INSERT INTO schedule_split_events
+                (
+                    schedule_date,
+                    period,
+                    activity,
+                    sort_order,
+                    created_by,
+                    updated_by
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+
+            foreach ($lines as $index => $line) {
+
+                $insertEvent->execute([
+                    $date,
+                    $period,
+                    $line,
+                    $index,
+                    $userId,
+                    $userId
+                ]);
+
+                $createdIds[] =
+                    (int) $this->pdo->lastInsertId();
+            }
+
+            /*
+        |--------------------------------------------------------------------------
+        | Copy existing slot availability to every new event
+        |--------------------------------------------------------------------------
+        |
+        | Nobody loses their current answers.
+        |
+        */
+
+            $stmt =
+                $this->pdo->prepare("
+                SELECT
+                    user_id,
+                    status,
+                    uncertain,
+                    updated_by
+                FROM availability
+                WHERE schedule_date = ?
+                  AND period = ?
+            ");
+
+            $stmt->execute([
+                $date,
+                $period
+            ]);
+
+            $existingAvailability =
+                $stmt->fetchAll();
+
+            $insertAvailability =
+                $this->pdo->prepare("
+                INSERT INTO split_availability
+                (
+                    split_event_id,
+                    user_id,
+                    status,
+                    uncertain,
+                    updated_by
+                )
+                VALUES (?, ?, ?, ?, ?)
+            ");
+
+            foreach ($createdIds as $eventId) {
+
+                foreach (
+                    $existingAvailability
+                    as $availabilityRow
+                ) {
+
+                    $insertAvailability->execute([
+                        $eventId,
+                        (int) $availabilityRow['user_id'],
+                        $availabilityRow['status'],
+                        (int) $availabilityRow['uncertain'],
+                        $availabilityRow['updated_by']
+                            ? (int) $availabilityRow['updated_by']
+                            : null
+                    ]);
+                }
+            }
+
+            $this->pdo->commit();
+
+            return $createdIds;
+        } catch (Throwable $e) {
+
+            $this->pdo->rollBack();
+
+            throw $e;
+        }
+    }
+    public function saveSplitAvailability(
+        int $eventId,
+        int $userId,
+        string $status,
+        int $updatedBy
+    ): void {
+        if ($status === '') {
+
+            $stmt = $this->pdo->prepare("
+            DELETE FROM split_availability
+            WHERE split_event_id = ?
+              AND user_id = ?
+        ");
+
+            $stmt->execute([
+                $eventId,
+                $userId
+            ]);
+
+            return;
+        }
+
+        $stmt = $this->pdo->prepare("
+        INSERT INTO split_availability
+        (
+            split_event_id,
+            user_id,
+            status,
+            updated_by
+        )
+        VALUES (?, ?, ?, ?)
+
+        ON DUPLICATE KEY UPDATE
+            status = VALUES(status),
+            updated_by = VALUES(updated_by),
+            updated_at = CURRENT_TIMESTAMP
+    ");
+
+        $stmt->execute([
+            $eventId,
+            $userId,
+            $status,
+            $updatedBy
+        ]);
+    }
 }
