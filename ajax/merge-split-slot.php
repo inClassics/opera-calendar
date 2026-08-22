@@ -1,71 +1,38 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../classes/Schedule.php';
 
-if (!is_logged_in()) {
-    json_response(['success' => false, 'message' => 'Not logged in.'], 401);
-}
+require_once __DIR__ . '/_bootstrap.php';
 
-if (!is_admin()) {
-    json_response(['success' => false, 'message' => 'Admin access required.'], 403);
-}
+ajax_require_admin();
 
-verify_csrf_or_fail($_POST['csrf_token'] ?? null);
-
-$date =
-    $_POST['date'] ?? '';
-
-$period =
-    $_POST['period'] ?? '';
-
-$force =
-    ($_POST['force'] ?? '0') === '1';
-
-if (
-    !is_valid_date($date)
-    ||
-    !in_array(
-        $period,
-        ['morning', 'evening'],
-        true
-    )
-) {
-    json_response(['success' => false, 'message' => 'Invalid request.'], 400);
-}
+$date = ajax_date((string) ($_POST['date'] ?? ''));
+$period = ajax_period((string) ($_POST['period'] ?? ''));
+$force = (string) ($_POST['force'] ?? '0') === '1';
 
 try {
-    $schedule = new Schedule($pdo);
-
-    $result =
-        $schedule->mergeSplitSlot(
-            $date,
-            $period,
-            current_user_id(),
-            $force
-        );
+    $result = $schedule->mergeSplitSlot(
+        $date,
+        $period,
+        current_user_id(),
+        $force
+    );
 
     if (
         isset($result['success'])
-        &&
-        $result['success'] === false
-        &&
-        !empty($result['conflicts'])
+        && $result['success'] === false
+        && !empty($result['conflicts'])
     ) {
         json_response([
             'success' => false,
             'needs_confirmation' => true,
             'conflict_count' => count($result['conflicts']),
-            'message' => 'Some members have different answers between these events.'
+            'message' => 'Some members have different answers between these events.',
         ], 409);
     }
 
     json_response($result);
-
 } catch (Throwable $e) {
     json_response([
         'success' => false,
-        'message' => $e->getMessage()
+        'message' => $e->getMessage(),
     ], 400);
 }

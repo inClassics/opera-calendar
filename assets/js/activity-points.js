@@ -1,53 +1,110 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const csrfToken = window.SECTION_SCHEDULE?.csrfToken || "";
+  const App = window.ScheduleApp;
+
+  if (!App) {
+    console.error("ScheduleApp core is missing.");
+    return;
+  }
+
+  const updateBadge = (editor, pointValue, pointType) => {
+    const item = editor.closest(".desktop-paper-activity-item");
+
+    if (!item) {
+      return;
+    }
+
+    let badge = item.querySelector(".desktop-paper-point-badge");
+
+    if (
+      pointValue <= 0
+      || !["rehearsal", "performance"].includes(pointType)
+    ) {
+      badge?.remove();
+      return;
+    }
+
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.className = "desktop-paper-point-badge";
+      badge.innerHTML = `
+        <span class="desktop-paper-point-letter"></span>
+        <span class="desktop-paper-point-divider">·</span>
+        <strong class="desktop-paper-point-number"></strong>
+      `;
+
+      item.appendChild(badge);
+    }
+
+    badge.classList.remove(
+      "desktop-paper-point-badge-rehearsal",
+      "desktop-paper-point-badge-performance"
+    );
+
+    badge.classList.add(
+      `desktop-paper-point-badge-${pointType}`
+    );
+
+    badge.querySelector(".desktop-paper-point-letter").textContent =
+      pointType === "rehearsal" ? "R" : "P";
+
+    badge.querySelector(".desktop-paper-point-number").textContent =
+      String(pointValue);
+
+    badge.title =
+      `${pointType === "rehearsal" ? "Rehearsal" : "Performance"} · `
+      + `${pointValue} ${pointValue === 1 ? "point" : "points"}`;
+  };
 
   const saveEditor = async (editor) => {
-    if (editor.dataset.saving === "1") return false;
-
-    const input = editor.querySelector(".activity-point-input");
-    const selected = editor.querySelector(".activity-point-type-button.selected");
-    const rawValue = (input?.value || "").trim();
-
-    if (rawValue === "" || Number.isNaN(Number(rawValue))) {
-      alert("Point value must be a number.");
+    if (editor.dataset.saving === "1") {
       return false;
     }
 
-    const numericValue = Number(rawValue);
-    if (numericValue < 0 || numericValue > 9999) {
+    const input = editor.querySelector(".activity-point-input");
+    const selected = editor.querySelector(
+      ".activity-point-type-button.selected"
+    );
+
+    const rawValue = (input?.value || "").trim();
+
+    if (rawValue === "" || !Number.isInteger(Number(rawValue))) {
+      alert("Point value must be a whole number.");
+      return false;
+    }
+
+    const pointValue = Number(rawValue);
+
+    if (pointValue < 0 || pointValue > 9999) {
       alert("Point value must be between 0 and 9999.");
       return false;
     }
+
+    const pointType = selected?.dataset.pointType || "";
 
     editor.dataset.saving = "1";
     editor.classList.add("is-saving");
     editor.classList.remove("is-error");
 
-    const body = new FormData();
-    body.append("csrf_token", csrfToken);
-    body.append("source_type", editor.dataset.pointSource || "");
-    body.append("source_id", editor.dataset.pointId || "");
-    body.append("point_value", String(numericValue));
-    body.append("point_type", selected?.dataset.pointType || "");
-
     try {
-      const response = await fetch("ajax/update-activity-points.php", {
-        method: "POST",
-        body,
-      });
+      const result = await App.post(
+        "ajax/update-activity-points.php",
+        {
+          source_type: editor.dataset.pointSource || "",
+          source_id: editor.dataset.pointId || "",
+          point_value: pointValue,
+          point_type: pointType,
+        }
+      );
 
-      let result;
-      try {
-        result = await response.json();
-      } catch {
-        throw new Error("The server did not return valid JSON.");
-      }
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || "Could not save point settings.");
-      }
+      editor.dataset.pointType = result.point_type || "";
 
       editor.classList.add("is-saved");
+
+      updateBadge(
+        editor,
+        Number(result.point_value || 0),
+        result.point_type || ""
+      );
 
       setTimeout(() => {
         editor.classList.remove("is-saved");
@@ -65,12 +122,19 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   document.querySelectorAll(".activity-point-editor").forEach((editor) => {
-    editor.addEventListener("click", (e) => e.stopPropagation());
-    editor.addEventListener("contextmenu", (e) => e.stopPropagation());
+    editor.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+
+    editor.addEventListener("contextmenu", (event) => {
+      event.stopPropagation();
+    });
 
     const input = editor.querySelector(".activity-point-input");
+
     if (input) {
       let original = input.value;
+      let saveTimer = null;
 
       input.addEventListener("focus", () => {
         original = input.value;
@@ -87,14 +151,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (event.key === "Escape") {
           event.preventDefault();
+          clearTimeout(saveTimer);
           input.value = original;
           input.blur();
         }
       });
 
-      let saveTimer = null;
-
       const scheduleSave = () => {
+        if (!App.isEditing()) {
+          return;
+        }
+
         clearTimeout(saveTimer);
 
         saveTimer = setTimeout(() => {
@@ -103,20 +170,26 @@ document.addEventListener("DOMContentLoaded", () => {
       };
 
       input.addEventListener("input", scheduleSave);
-
       input.addEventListener("change", scheduleSave);
     }
 
-    const buttons = editor.querySelectorAll(".activity-point-type-button");
+    const buttons = editor.querySelectorAll(
+      ".activity-point-type-button"
+    );
 
     buttons.forEach((button) => {
       button.addEventListener("click", async (event) => {
         event.preventDefault();
         event.stopPropagation();
 
-        if (!document.body.classList.contains("editing-mode")) return;
+        if (!App.isEditing()) {
+          return;
+        }
 
-        buttons.forEach((b) => b.classList.remove("selected"));
+        buttons.forEach((item) => {
+          item.classList.remove("selected");
+        });
+
         button.classList.add("selected");
 
         await saveEditor(editor);

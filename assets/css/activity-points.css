@@ -6,115 +6,107 @@ body.editing-mode .activity-point-editor {
   display: flex;
   align-items: center;
   justify-content: center;
+
   gap: 3px;
+
   writing-mode: horizontal-tb !important;
   text-orientation: mixed !important;
   transform: none !important;
+
   padding: 3px 4px;
+
   border: 1px solid #b8c1cb;
   border-radius: 5px;
+
   background: rgba(255, 255, 255, 0.97);
+
   box-shadow: 0 1px 4px rgba(30, 42, 54, 0.12);
+
   font-size: 10px;
   line-height: 1;
 }
+
 .activity-point-editor::before {
   content: "pts";
+
   color: #707985;
+
   font-size: 8px;
   font-weight: 700;
   text-transform: uppercase;
 }
+
 .activity-point-input {
   width: 43px;
   height: 24px;
+
   box-sizing: border-box;
+
   padding: 1px 3px;
+
   border: 1px solid #bfc8d1;
   border-radius: 4px;
+
   background: #fff;
   color: #27313b;
+
   font: inherit;
   font-size: 10px;
   font-weight: 700;
+
   text-align: center;
 }
+
 .activity-point-type {
   display: flex;
   align-items: center;
   gap: 1px;
 }
+
 .activity-point-type-button {
   width: 25px;
   height: 24px;
+
   padding: 0;
+
   border: 1px solid #bec7d0;
+
   background: #f4f6f8;
   color: #68727d;
+
   font-size: 9px;
   font-weight: 900;
+
   cursor: pointer;
 }
+
 .activity-point-type-button:first-child {
   border-radius: 4px 0 0 4px;
 }
+
 .activity-point-type-button:last-child {
   border-radius: 0 4px 4px 0;
 }
+
 .activity-point-type-button.selected[data-point-type="rehearsal"] {
   background: #e8f3d9;
   border-color: #8dae61;
   color: #42651d;
 }
+
 .activity-point-type-button.selected[data-point-type="performance"] {
   background: #deedfb;
   border-color: #78a1c7;
   color: #285d89;
 }
+
 .activity-point-editor.is-saving {
   opacity: 0.55;
   pointer-events: none;
 }
+
 .activity-point-editor.is-error {
   border-color: #ca5151;
-}
-
-.desktop-paper-activity-items {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  min-width: 0;
-}
-.desktop-paper-activity-item {
-  position: relative;
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-bottom: 34px;
-}
-.desktop-paper-activity-item + .desktop-paper-activity-item {
-  border-left: 1px dashed #d8dde3;
-}
-body.editing-mode .desktop-paper-activity-item .activity-point-editor {
-  position: absolute;
-  z-index: 20;
-  left: 50%;
-  bottom: 4px;
-  transform: translateX(-50%) !important;
-}
-body.editing-mode .desktop-paper-activity-text {
-  max-height: calc(var(--activity-height) - 43px);
-}
-
-.mobile-activity-point-editor {
-  margin: 5px 0 8px;
-}
-body.editing-mode .mobile-activity-point-editor {
-  display: inline-flex;
 }
 
 .activity-point-editor.is-saved {
@@ -127,4 +119,88 @@ body.editing-mode .mobile-activity-point-editor {
   color: #4b8a43;
 
   font-weight: 800;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Desktop activity items
+|--------------------------------------------------------------------------
+*/
+
+.desktop-paper-activity-items {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+
+  min-width: 0;
+}
+
+.desktop-paper-activity-item {
+  position: relative;
+
+  flex: 1 1 0;
+
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.desktop-paper-activity-item + .desktop-paper-activity-item {
+  border-left: 1px dashed #d8dde3;
+}
+
+/*
+| Reserve room for controls only while editing.
+*/
+body.editing-mode .desktop-paper-activity-item {
+  padding-bottom: 34px;
+}
+
+body.editing-mode .desktop-paper-activity-item .activity-point-editor {
+  position: absolute;
+
+  z-index: 20;
+
+  left: 50%;
+  bottom: 4px;
+
+  transform: translateX(-50%) !important;
+}
+
+body.editing-mode .desktop-paper-activity-text {
+  max-height: calc(var(--activity-height) - 43px);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Mobile
+|--------------------------------------------------------------------------
+*/
+
+.mobile-activity-point-summary {
+  display: inline-flex;
+  align-items: center;
+
+  margin: 4px 0 7px;
+  padding: 3px 7px;
+
+  border-radius: 999px;
+
+  background: #f1f4f7;
+  color: #55616d;
+
+  font-size: 11px;
+}
+
+.mobile-activity-point-editor {
+  margin: 5px 0 8px;
+}
+
+body.editing-mode .mobile-activity-point-editor {
+  display: inline-flex;
 }

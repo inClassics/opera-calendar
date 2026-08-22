@@ -1,42 +1,25 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../classes/Schedule.php';
 
-if (!is_logged_in()) {
-    json_response(['success' => false, 'message' => 'Not logged in.'], 401);
-}
+require_once __DIR__ . '/_bootstrap.php';
 
-if (!is_admin()) {
-    json_response(['success' => false, 'message' => 'Admin access required.'], 403);
-}
+ajax_require_admin();
 
-verify_csrf_or_fail($_POST['csrf_token'] ?? null);
-
-$eventId =
-    (int) ($_POST['split_event_id'] ?? 0);
-
-if (!$eventId) {
-    json_response(['success' => false, 'message' => 'Invalid request.'], 400);
-}
+$eventId = (int) ($_POST['split_event_id'] ?? 0);
+ajax_require_split_event($pdo, $eventId);
 
 try {
-    $schedule = new Schedule($pdo);
-
-    $result =
-        $schedule->deleteSplitEvent(
-            $eventId,
-            current_user_id()
-        );
+    $result = $schedule->deleteSplitEvent(
+        $eventId,
+        current_user_id()
+    );
 
     json_response([
         'success' => true,
-        ...$result
+        ...$result,
     ]);
 } catch (Throwable $e) {
     json_response([
         'success' => false,
-        'message' => $e->getMessage()
+        'message' => $e->getMessage(),
     ], 400);
 }

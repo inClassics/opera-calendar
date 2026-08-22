@@ -1,32 +1,28 @@
 <?php
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../classes/Schedule.php';
+require_once __DIR__ . '/_bootstrap.php';
 
-if (!is_logged_in()) {
-    json_response(['success' => false, 'message' => 'Not logged in.'], 401);
-}
-if (!is_admin()) {
-    json_response(['success' => false, 'message' => 'Admin access required.'], 403);
-}
+ajax_require_admin();
 
-verify_csrf_or_fail($_POST['csrf_token'] ?? null);
-
-$date = $_POST['date'] ?? '';
-$period = $_POST['period'] ?? '';
-$activity = trim($_POST['activity'] ?? '');
-
-if (!is_valid_date($date) || !in_array($period, ['morning', 'evening'], true)) {
-    json_response(['success' => false, 'message' => 'Invalid request.'], 400);
-}
+$date = ajax_date((string) ($_POST['date'] ?? ''));
+$period = ajax_period((string) ($_POST['period'] ?? ''));
+$activity = trim((string) ($_POST['activity'] ?? ''));
 
 if (mb_strlen($activity) > 255) {
-    json_response(['success' => false, 'message' => 'Activity is too long.'], 422);
+    json_response([
+        'success' => false,
+        'message' => 'Activity is too long.',
+    ], 422);
 }
 
-$schedule = new Schedule($pdo);
-$schedule->saveActivity($date, $period, $activity, current_user_id());
+$schedule->saveActivity(
+    $date,
+    $period,
+    $activity,
+    current_user_id()
+);
 
-json_response(['success' => true, 'activity' => $activity]);
+json_response([
+    'success' => true,
+    'activity' => $activity,
+]);
