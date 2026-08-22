@@ -588,7 +588,7 @@ $csrf = csrf_token();
     <script src="assets/js/app.js"></script>
     <script src="assets/js/mobile.js"></script>
     <script src="assets/js/split-events.js"></script>
-    <script src="assets/js/split-events.js"></script>
+    <script src="assets/js/activity-points.js?v=4"></script>
 </body>
 
 </html>

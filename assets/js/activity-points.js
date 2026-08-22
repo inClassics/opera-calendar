@@ -1,4 +1,3 @@
-
 document.addEventListener("DOMContentLoaded", () => {
   const csrfToken = window.SECTION_SCHEDULE?.csrfToken || "";
 
@@ -48,7 +47,12 @@ document.addEventListener("DOMContentLoaded", () => {
         throw new Error(result.message || "Could not save point settings.");
       }
 
-      window.location.reload();
+      editor.classList.add("is-saved");
+
+      setTimeout(() => {
+        editor.classList.remove("is-saved");
+      }, 700);
+
       return true;
     } catch (error) {
       editor.classList.add("is-error");
@@ -61,8 +65,8 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   document.querySelectorAll(".activity-point-editor").forEach((editor) => {
-    editor.addEventListener("click", e => e.stopPropagation());
-    editor.addEventListener("contextmenu", e => e.stopPropagation());
+    editor.addEventListener("click", (e) => e.stopPropagation());
+    editor.addEventListener("contextmenu", (e) => e.stopPropagation());
 
     const input = editor.querySelector(".activity-point-input");
     if (input) {
@@ -88,7 +92,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      input.addEventListener("change", () => saveEditor(editor));
+      let saveTimer = null;
+
+      const scheduleSave = () => {
+        clearTimeout(saveTimer);
+
+        saveTimer = setTimeout(() => {
+          saveEditor(editor);
+        }, 400);
+      };
+
+      input.addEventListener("input", scheduleSave);
+
+      input.addEventListener("change", scheduleSave);
     }
 
     const buttons = editor.querySelectorAll(".activity-point-type-button");
@@ -100,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!document.body.classList.contains("editing-mode")) return;
 
-        buttons.forEach(b => b.classList.remove("selected"));
+        buttons.forEach((b) => b.classList.remove("selected"));
         button.classList.add("selected");
 
         await saveEditor(editor);
