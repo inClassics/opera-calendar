@@ -4,6 +4,7 @@ class Schedule
 {
     public function __construct(private PDO $pdo) {}
 
+
     public function monthContext(int $year, int $month): array
     {
         if ($month < 1 || $month > 12) $month = (int) date('n');
@@ -130,11 +131,7 @@ class Schedule
         $manual = [];
 
         foreach ($stmt->fetchAll() as $row) {
-            $manual[
-                $row['schedule_date']
-            ][
-                $row['period']
-            ] =
+            $manual[$row['schedule_date']][$row['period']] =
                 $row['activity'];
         }
 
@@ -175,11 +172,7 @@ class Schedule
                     $text;
             }
 
-            $imported[
-                $row['schedule_date']
-            ][
-                $row['period']
-            ][] =
+            $imported[$row['schedule_date']][$row['period']][] =
                 $text;
         }
 
@@ -206,11 +199,8 @@ class Schedule
                 ) {
                     $slots[$date][$period] =
                         $manual[$date][$period];
-
                 } elseif (
-                    !empty(
-                        $imported[$date][$period]
-                    )
+                    !empty($imported[$date][$period])
                 ) {
                     $slots[$date][$period] =
                         implode(
@@ -235,9 +225,7 @@ class Schedule
             );
 
         $end =
-            !empty(
-                $row['end_local']
-            )
+            !empty($row['end_local'])
             ? new DateTime(
                 $row['end_local']
             )
@@ -322,13 +310,9 @@ class Schedule
                 null;
 
             if (
-                !empty(
-                    $row['calendar_event_id']
-                )
+                !empty($row['calendar_event_id'])
                 &&
-                !empty(
-                    $row['calendar_start_local']
-                )
+                !empty($row['calendar_start_local'])
             ) {
 
                 $sourceStatus =
@@ -350,11 +334,11 @@ class Schedule
                         $this->formatCalendarEvent(
                             [
                                 'start_local' =>
-                                    $row['calendar_start_local'],
+                                $row['calendar_start_local'],
                                 'end_local' =>
-                                    $row['calendar_end_local'],
+                                $row['calendar_end_local'],
                                 'summary' =>
-                                    $row['calendar_summary'],
+                                $row['calendar_summary'],
                             ]
                         );
                 }
@@ -368,27 +352,21 @@ class Schedule
                 }
             }
 
-            $result[
-                $row['schedule_date']
-            ][
-                $row['period']
-            ][] = [
+            $result[$row['schedule_date']][$row['period']][] = [
                 'id' =>
-                    (int) $row['id'],
+                (int) $row['id'],
                 'activity' =>
-                    $activity,
+                $activity,
                 'sort_order' =>
-                    (int) $row['sort_order'],
+                (int) $row['sort_order'],
                 'calendar_event_id' =>
-                    !empty(
-                        $row['calendar_event_id']
-                    )
+                !empty($row['calendar_event_id'])
                     ? (int) $row['calendar_event_id']
                     : null,
                 'source_status' =>
-                    $sourceStatus,
+                $sourceStatus,
                 'has_override' =>
-                    $row['activity_override']
+                $row['activity_override']
                     !== null,
 
                 /*
@@ -402,41 +380,41 @@ class Schedule
                 */
 
                 'point_value' =>
-                    (float) (
-                        !empty($row['calendar_event_id'])
-                        ? ($row['calendar_point_value'] ?? 0)
-                        : ($row['split_point_value'] ?? 0)
-                    ),
+                (float) (
+                    !empty($row['calendar_event_id'])
+                    ? ($row['calendar_point_value'] ?? 0)
+                    : ($row['split_point_value'] ?? 0)
+                ),
 
                 'point_type' =>
-                    !empty($row['calendar_event_id'])
+                !empty($row['calendar_event_id'])
                     ? ($row['calendar_point_type'] ?? null)
                     : ($row['split_point_type'] ?? null),
 
                 'point_items' => [
                     [
                         'source_type' =>
-                            !empty($row['calendar_event_id'])
+                        !empty($row['calendar_event_id'])
                             ? 'calendar'
                             : 'split',
 
                         'source_id' =>
-                            !empty($row['calendar_event_id'])
+                        !empty($row['calendar_event_id'])
                             ? (int) $row['calendar_event_id']
                             : (int) $row['id'],
 
                         'activity' =>
-                            $activity,
+                        $activity,
 
                         'point_value' =>
-                            (float) (
-                                !empty($row['calendar_event_id'])
-                                ? ($row['calendar_point_value'] ?? 0)
-                                : ($row['split_point_value'] ?? 0)
-                            ),
+                        (float) (
+                            !empty($row['calendar_event_id'])
+                            ? ($row['calendar_point_value'] ?? 0)
+                            : ($row['split_point_value'] ?? 0)
+                        ),
 
                         'point_type' =>
-                            !empty($row['calendar_event_id'])
+                        !empty($row['calendar_event_id'])
                             ? ($row['calendar_point_type'] ?? null)
                             : ($row['split_point_type'] ?? null),
                     ],
@@ -554,13 +532,13 @@ class Schedule
             ) {
                 $splitRows[] = [
                     'calendar_event_id' =>
-                        (int) $row['id'],
+                    (int) $row['id'],
                     'activity' =>
-                        $this->formatCalendarEvent(
-                            $row
-                        ),
+                    $this->formatCalendarEvent(
+                        $row
+                    ),
                     'sort_order' =>
-                        $index,
+                    $index,
                 ];
             }
         } else {
@@ -578,7 +556,7 @@ class Schedule
                             $lines
                         ),
                         static fn($line) =>
-                            $line !== ''
+                        $line !== ''
                     )
                 );
 
@@ -596,11 +574,11 @@ class Schedule
             ) {
                 $splitRows[] = [
                     'calendar_event_id' =>
-                        null,
+                    null,
                     'activity' =>
-                        $line,
+                    $line,
                     'sort_order' =>
-                        $index,
+                    $index,
                 ];
             }
         }
@@ -707,7 +685,6 @@ class Schedule
             $this->pdo->commit();
 
             return $createdIds;
-
         } catch (Throwable $e) {
 
             $this->pdo->rollBack();
@@ -783,9 +760,7 @@ class Schedule
         }
 
         if (
-            !empty(
-                $row['calendar_event_id']
-            )
+            !empty($row['calendar_event_id'])
         ) {
             /*
             | Imported event: save a local override.
@@ -806,7 +781,6 @@ class Schedule
                 $updatedBy,
                 $eventId
             ]);
-
         } else {
 
             $stmt =
@@ -1058,7 +1032,6 @@ class Schedule
                 'merged_to_normal' => false,
                 'remaining' => count($remaining),
             ];
-
         } catch (Throwable $e) {
 
             $this->pdo->rollBack();
@@ -1330,9 +1303,8 @@ class Schedule
             return [
                 'success' => true,
                 'conflicts_cleared' =>
-                    count($conflicts),
+                count($conflicts),
             ];
-
         } catch (Throwable $e) {
 
             $this->pdo->rollBack();
@@ -1420,12 +1392,10 @@ class Schedule
                 ]);
 
                 $linked++;
-
             } elseif (
                 count($matches) > 1
             ) {
                 $ambiguous++;
-
             } else {
                 $unmatched++;
             }
@@ -1481,17 +1451,9 @@ class Schedule
 
         foreach ($manualStmt->fetchAll() as $row) {
 
-            $manualSlots[
-                $row['schedule_date']
-            ][
-                $row['period']
-            ] = true;
+            $manualSlots[$row['schedule_date']][$row['period']] = true;
 
-            $result[
-                $row['schedule_date']
-            ][
-                $row['period']
-            ][] = [
+            $result[$row['schedule_date']][$row['period']][] = [
                 'source_type' => 'slot',
                 'source_id' => (int) $row['id'],
                 'activity' => $row['activity'],
@@ -1529,13 +1491,7 @@ class Schedule
             | so its point settings override the imported events as well.
             */
             if (
-                !empty(
-                    $manualSlots[
-                        $row['schedule_date']
-                    ][
-                        $row['period']
-                    ]
-                )
+                !empty($manualSlots[$row['schedule_date']][$row['period']])
             ) {
                 continue;
             }
@@ -1554,11 +1510,7 @@ class Schedule
                     $activity;
             }
 
-            $result[
-                $row['schedule_date']
-            ][
-                $row['period']
-            ][] = [
+            $result[$row['schedule_date']][$row['period']][] = [
                 'source_type' => 'calendar',
                 'source_id' => (int) $row['id'],
                 'activity' => $activity,
@@ -1570,6 +1522,7 @@ class Schedule
         return $result;
     }
 
+
     public function updateActivityPoints(
         string $sourceType,
         int $sourceId,
@@ -1577,9 +1530,11 @@ class Schedule
         ?string $pointType,
         int $updatedBy
     ): void {
+
         if ($pointValue < 0 || $pointValue > 9999) {
+
             throw new RuntimeException(
-                'Point value is outside the allowed range.'
+                'Point value must be between 0 and 9999.'
             );
         }
 
@@ -1588,42 +1543,34 @@ class Schedule
             &&
             !in_array(
                 $pointType,
-                ['rehearsal', 'performance'],
+                [
+                    'rehearsal',
+                    'performance'
+                ],
                 true
             )
         ) {
+
             throw new RuntimeException(
                 'Invalid point type.'
             );
         }
 
-        $table = match ($sourceType) {
-            'calendar' => 'calendar_events',
-            'split' => 'schedule_split_events',
-            'slot' => 'schedule_slots',
-            default => null,
-        };
-
-        if ($table === null) {
-            throw new RuntimeException(
-                'Invalid activity source.'
-            );
-        }
-
         /*
-        | All three tables have updated_at. schedule_slots and split events also
-        | have updated_by; calendar_events does not use local updated_by.
-        */
+    |--------------------------------------------------------------------------
+    | Imported calendar event
+    |--------------------------------------------------------------------------
+    */
+
         if ($sourceType === 'calendar') {
 
-            $stmt =
-                $this->pdo->prepare("
-                    UPDATE calendar_events
-                    SET point_value = ?,
-                        point_type = ?,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                ");
+            $stmt = $this->pdo->prepare("
+            UPDATE calendar_events
+            SET
+                point_value = ?,
+                point_type = ?
+            WHERE id = ?
+        ");
 
             $stmt->execute([
                 $pointValue,
@@ -1631,17 +1578,25 @@ class Schedule
                 $sourceId
             ]);
 
-        } else {
+            return;
+        }
 
-            $stmt =
-                $this->pdo->prepare("
-                    UPDATE {$table}
-                    SET point_value = ?,
-                        point_type = ?,
-                        updated_by = ?,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                ");
+        /*
+    |--------------------------------------------------------------------------
+    | Split event
+    |--------------------------------------------------------------------------
+    */
+
+        if ($sourceType === 'split') {
+
+            $stmt = $this->pdo->prepare("
+            UPDATE schedule_split_events
+            SET
+                point_value = ?,
+                point_type = ?,
+                updated_by = ?
+            WHERE id = ?
+        ");
 
             $stmt->execute([
                 $pointValue,
@@ -1649,28 +1604,39 @@ class Schedule
                 $updatedBy,
                 $sourceId
             ]);
+
+            return;
         }
 
-        if ($stmt->rowCount() === 0) {
+        /*
+    |--------------------------------------------------------------------------
+    | Normal manually-created activity
+    |--------------------------------------------------------------------------
+    */
 
-            $check =
-                $this->pdo->prepare("
-                    SELECT id
-                    FROM {$table}
-                    WHERE id = ?
-                    LIMIT 1
-                ");
+        if ($sourceType === 'slot') {
 
-            $check->execute([
+            $stmt = $this->pdo->prepare("
+            UPDATE schedule_slots
+            SET
+                point_value = ?,
+                point_type = ?,
+                updated_by = ?
+            WHERE id = ?
+        ");
+
+            $stmt->execute([
+                $pointValue,
+                $pointType,
+                $updatedBy,
                 $sourceId
             ]);
 
-            if (!$check->fetch()) {
-                throw new RuntimeException(
-                    'Activity not found.'
-                );
-            }
+            return;
         }
-    }
 
+        throw new RuntimeException(
+            'Unknown activity source.'
+        );
+    }
 }

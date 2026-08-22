@@ -29,11 +29,7 @@ function getSpecialDayEmoji(array $member, string $date): string
 function slotEvents(array $day, string $period, array $splitEvents): array
 {
     $events =
-        $splitEvents[
-            $day['date']
-        ][
-            $period
-        ]
+        $splitEvents[$day['date']][$period]
         ?? [];
 
     if ($events) {
@@ -41,11 +37,7 @@ function slotEvents(array $day, string $period, array $splitEvents): array
     }
 
     $pointItems =
-        $GLOBALS['activityPointItems'][
-            $day['date']
-        ][
-            $period
-        ]
+        $GLOBALS['activityPointItems'][$day['date']][$period]
         ?? [];
 
     return [[
@@ -102,10 +94,10 @@ $splitAvailability = $scheduleRepository->splitAvailabilityForMonth($context['fi
 
 $activityPointItems =
     $scheduleRepository
-        ->activityPointItemsForMonth(
-            $context['firstDay'],
-            $context['lastDay']
-        );
+    ->activityPointItemsForMonth(
+        $context['firstDay'],
+        $context['lastDay']
+    );
 
 $GLOBALS['activityPointItems'] =
     $activityPointItems;
@@ -121,31 +113,31 @@ $mobileDays = array_values(array_filter(
 
 $pointsAvailability =
     $scheduleRepository
-        ->availabilityForMonth(
-            $seasonStartDate,
-            $context['lastDay']
-        );
+    ->availabilityForMonth(
+        $seasonStartDate,
+        $context['lastDay']
+    );
 
 $pointSplitEvents =
     $scheduleRepository
-        ->splitEventsForMonth(
-            $seasonStartDate,
-            $context['lastDay']
-        );
+    ->splitEventsForMonth(
+        $seasonStartDate,
+        $context['lastDay']
+    );
 
 $pointSplitAvailability =
     $scheduleRepository
-        ->splitAvailabilityForMonth(
-            $seasonStartDate,
-            $context['lastDay']
-        );
+    ->splitAvailabilityForMonth(
+        $seasonStartDate,
+        $context['lastDay']
+    );
 
 $pointActivityItems =
     $scheduleRepository
-        ->activityPointItemsForMonth(
-            $seasonStartDate,
-            $context['lastDay']
-        );
+    ->activityPointItemsForMonth(
+        $seasonStartDate,
+        $context['lastDay']
+    );
 
 /*
 |--------------------------------------------------------------------------
@@ -202,7 +194,7 @@ while (
 
     $date =
         $calculationDate
-            ->format('Y-m-d');
+        ->format('Y-m-d');
 
     $weekdayNumber =
         (int)
@@ -228,11 +220,7 @@ while (
     ) {
 
         $splitForSlot =
-            $pointSplitEvents[
-                $date
-            ][
-                $period
-            ]
+            $pointSplitEvents[$date][$period]
             ?? [];
 
         /*
@@ -285,18 +273,14 @@ while (
                         (int) $member['id'];
 
                     $item =
-                        $pointSplitAvailability[
-                            $eventId
-                        ][
-                            $userId
-                        ]
+                        $pointSplitAvailability[$eventId][$userId]
                         ?? null;
 
                     if (
                         !is_array($item)
                         ||
                         ($item['status'] ?? '')
-                            !== 'available'
+                        !== 'available'
                     ) {
                         continue;
                     }
@@ -305,13 +289,9 @@ while (
                         $pointType
                         === 'rehearsal'
                     ) {
-                        $runningRehearsalPoints[
-                            $userId
-                        ] += $pointValue;
+                        $runningRehearsalPoints[$userId] += $pointValue;
                     } else {
-                        $runningPerformancePoints[
-                            $userId
-                        ] += $pointValue;
+                        $runningPerformancePoints[$userId] += $pointValue;
                     }
                 }
             }
@@ -331,11 +311,7 @@ while (
         */
 
         $pointItems =
-            $pointActivityItems[
-                $date
-            ][
-                $period
-            ]
+            $pointActivityItems[$date][$period]
             ?? [];
 
         if (!$pointItems) {
@@ -351,13 +327,7 @@ while (
                 (int) $member['id'];
 
             $availabilityItem =
-                $pointsAvailability[
-                    $date
-                ][
-                    $period
-                ][
-                    $userId
-                ]
+                $pointsAvailability[$date][$period][$userId]
                 ?? null;
 
             if (
@@ -366,9 +336,7 @@ while (
                 )
                 ||
                 (
-                    $availabilityItem[
-                        'status'
-                    ]
+                    $availabilityItem['status']
                     ?? ''
                 )
                 !== 'available'
@@ -383,16 +351,12 @@ while (
 
                 $pointValue =
                     (float) (
-                        $pointItem[
-                            'point_value'
-                        ]
+                        $pointItem['point_value']
                         ?? 0
                     );
 
                 $pointType =
-                    $pointItem[
-                        'point_type'
-                    ]
+                    $pointItem['point_type']
                     ?? null;
 
                 if ($pointValue <= 0) {
@@ -403,17 +367,12 @@ while (
                     $pointType
                     === 'rehearsal'
                 ) {
-                    $runningRehearsalPoints[
-                        $userId
-                    ] += $pointValue;
-
+                    $runningRehearsalPoints[$userId] += $pointValue;
                 } elseif (
                     $pointType
                     === 'performance'
                 ) {
-                    $runningPerformancePoints[
-                        $userId
-                    ] += $pointValue;
+                    $runningPerformancePoints[$userId] += $pointValue;
                 }
             }
         }
@@ -442,6 +401,7 @@ $csrf = csrf_token();
 ?>
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -452,173 +412,183 @@ $csrf = csrf_token();
     <link rel="stylesheet" href="assets/css/desktop-v3.css">
     <link rel="stylesheet" href="assets/css/activity-points.css">
 </head>
+
 <body>
-<header class="topbar">
-    <div class="brand"><?= e(APP_NAME) ?></div>
-    <nav class="month-navigation" aria-label="Month navigation">
-        <a class="month-arrow" href="?year=<?= $context['previousMonth']->format('Y') ?>&month=<?= $context['previousMonth']->format('n') ?>" aria-label="Previous month">‹</a>
-        <h1><?= e($context['monthTitle']) ?></h1>
-        <a class="month-arrow" href="?year=<?= $context['nextMonth']->format('Y') ?>&month=<?= $context['nextMonth']->format('n') ?>" aria-label="Next month">›</a>
-    </nav>
-    <div class="account">
-        <span class="account-name"><?= e($_SESSION['name']) ?></span>
-        <button type="button" class="button edit-mode-toggle" id="edit-mode-toggle" aria-pressed="false">Edit schedule</button>
-        <?php if (is_admin()): ?>
-            <a href="admin/import-calendar.php">Import calendar</a>
-            <a href="admin/users.php">Users</a>
-        <?php endif; ?>
-        <a href="logout.php">Logout</a>
-    </div>
-</header>
+    <header class="topbar">
+        <div class="brand"><?= e(APP_NAME) ?></div>
+        <nav class="month-navigation" aria-label="Month navigation">
+            <a class="month-arrow" href="?year=<?= $context['previousMonth']->format('Y') ?>&month=<?= $context['previousMonth']->format('n') ?>" aria-label="Previous month">‹</a>
+            <h1><?= e($context['monthTitle']) ?></h1>
+            <a class="month-arrow" href="?year=<?= $context['nextMonth']->format('Y') ?>&month=<?= $context['nextMonth']->format('n') ?>" aria-label="Next month">›</a>
+        </nav>
+        <div class="account">
+            <span class="account-name"><?= e($_SESSION['name']) ?></span>
+            <button type="button" class="button edit-mode-toggle" id="edit-mode-toggle" aria-pressed="false">Edit schedule</button>
+            <?php if (is_admin()): ?>
+                <a href="admin/import-calendar.php">Import calendar</a>
+                <a href="admin/users.php">Users</a>
+            <?php endif; ?>
+            <a href="logout.php">Logout</a>
+        </div>
+    </header>
 
-<main class="page">
-    <div class="legend desktop-legend">
-        <span class="available-mark">×</span> available
-        <span class="unavailable-mark">•</span> unavailable
-        <span class="muted">? = uncertain</span>
-        <span class="muted">blank = unanswered</span>
-    </div>
-
-    <?php require __DIR__ . '/views/desktop-schedule-v3.php'; ?>
-
-    <div class="mobile-schedule">
-        <div class="mobile-legend">
-            <span><strong class="available-mark">×</strong> available</span>
-            <span><strong class="unavailable-mark">•</strong> unavailable</span>
-            <span class="muted">? uncertain</span>
+    <main class="page">
+        <div class="legend desktop-legend">
+            <span class="available-mark">×</span> available
+            <span class="unavailable-mark">•</span> unavailable
+            <span class="muted">? = uncertain</span>
+            <span class="muted">blank = unanswered</span>
         </div>
 
-        <?php foreach ($mobileDays as $day): ?>
-            <?php if ($day['weekday'] === 'Monday'): ?>
-                <section class="mobile-points-card">
-                    <div class="mobile-week-title">Week of <?= e((new DateTime($day['date']))->format('j M')) ?></div>
-                    <div class="mobile-points-columns">
-                        <div>
-                            <h3>Performance points</h3>
-                            <div class="mobile-points-grid">
-                                <?php foreach ($members as $member): ?>
-                                    <?php $userId = (int) $member['id']; $weekPoints = $weeklyEveningPoints[$day['date']][$userId] ?? $member['evening_starting_points'] ?? 0; ?>
-                                    <div class="mobile-point-item <?= $userId === current_user_id() ? 'current-user-mobile' : '' ?>"><span><?= e($member['name']) ?></span><strong><?= e(format_points($weekPoints)) ?></strong></div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                        <div>
-                            <h3>Rehearsal points</h3>
-                            <div class="mobile-points-grid">
-                                <?php foreach ($members as $member): ?>
-                                    <?php $userId = (int) $member['id']; ?>
-                                    <div class="mobile-point-item <?= $userId === current_user_id() ? 'current-user-mobile' : '' ?>"><span><?= e($member['name']) ?></span><strong><?= e(format_points($weeklyRehearsalPoints[$day['date']][$userId] ?? $member['morning_starting_points'] ?? 0)) ?></strong></div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            <?php endif; ?>
+        <?php require __DIR__ . '/views/desktop-schedule-v3.php'; ?>
 
-            <article class="mobile-day-card <?= $day['weekday'] === 'Sunday' ? 'mobile-week-end' : '' ?>">
-                <header class="mobile-day-header">
-                    <div class="mobile-day-number"><?= (int) $day['day'] ?></div>
-                    <div>
-                        <div class="mobile-weekday"><?= e($day['weekday']) ?></div>
-                        <div class="mobile-date-full"><?= e((new DateTime($day['date']))->format('j F Y')) ?></div>
-                    </div>
-                </header>
+        <div class="mobile-schedule">
+            <div class="mobile-legend">
+                <span><strong class="available-mark">×</strong> available</span>
+                <span><strong class="unavailable-mark">•</strong> unavailable</span>
+                <span class="muted">? uncertain</span>
+            </div>
 
-                <div class="mobile-session-grid">
-                    <?php foreach (['morning' => 'Morning', 'evening' => 'Evening'] as $period => $label): ?>
-                        <?php $periodEvents = slotEvents($day, $period, $splitEvents); ?>
-                        <section class="mobile-session">
-                            <div class="mobile-session-heading"><span><?= $period === 'evening' ? '🌙' : '☀️' ?></span><strong><?= e($label) ?></strong></div>
-
-                            <?php foreach ($periodEvents as $event): ?>
-                                <?php $eventId = $event['id'] !== null ? (int) $event['id'] : null; ?>
-                                <div class="mobile-event-block <?= $eventId ? 'is-split-event' : '' ?>">
-                                    <div class="mobile-activity <?= (!$eventId && is_admin()) ? 'activity-editable' : '' ?> <?= $eventId ? 'split-activity-cell' : '' ?>" data-date="<?= e($day['date']) ?>" data-period="<?= e($period) ?>" data-split-event-id="<?= $eventId ?: '' ?>"><?= e($event['activity']) ?></div>
-
-                                    <?php if (is_admin()): ?>
-                                        <?php
-                                        $mobilePointItems =
-                                            $event['point_items']
-                                            ?? [];
-                                        ?>
-                                        <?php foreach ($mobilePointItems as $pointItem): ?>
-                                            <div
-                                                class="activity-point-editor mobile-activity-point-editor"
-                                                data-point-source="<?= e($pointItem['source_type']) ?>"
-                                                data-point-id="<?= (int) $pointItem['source_id'] ?>"
-                                                data-point-type="<?= e($pointItem['point_type'] ?? '') ?>"
-                                            >
-                                                <input
-                                                    type="number"
-                                                    class="activity-point-input"
-                                                    value="<?= e(format_points($pointItem['point_value'] ?? 0)) ?>"
-                                                    min="0"
-                                                    max="9999"
-                                                    step="0.25"
-                                                    inputmode="decimal"
-                                                    aria-label="Activity point value"
-                                                >
-
-                                                <div class="activity-point-type">
-                                                    <button
-                                                        type="button"
-                                                        class="activity-point-type-button <?= ($pointItem['point_type'] ?? '') === 'rehearsal' ? 'selected' : '' ?>"
-                                                        data-point-type="rehearsal"
-                                                        title="Rehearsal points"
-                                                    >R</button>
-
-                                                    <button
-                                                        type="button"
-                                                        class="activity-point-type-button <?= ($pointItem['point_type'] ?? '') === 'performance' ? 'selected' : '' ?>"
-                                                        data-point-type="performance"
-                                                        title="Performance points"
-                                                    >P</button>
-                                                </div>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-
-                                    <div class="mobile-members-grid">
-                                        <?php foreach ($members as $member): ?>
-                                            <?php
-                                            $userId = (int) $member['id'];
-                                            $item = $eventId
-                                                ? ($splitAvailability[$eventId][$userId] ?? ['status' => '', 'uncertain' => false])
-                                                : ($availability[$day['date']][$period][$userId] ?? ['status' => '', 'uncertain' => false]);
-                                            $status = $item['status'] ?? '';
-                                            $uncertain = !empty($item['uncertain']);
-                                            $editable = is_admin() || $userId === current_user_id();
-                                            $isCurrentUser = $userId === current_user_id();
-                                            $specialDayClass = getSpecialDayClass($member, $day['date']);
-                                            $specialDayEmoji = getSpecialDayEmoji($member, $day['date']);
-                                            ?>
-                                            <div class="mobile-member-row <?= $isCurrentUser ? 'current-user-mobile' : '' ?> <?= e($specialDayClass) ?>">
-                                                <span class="mobile-member-name"><?= e($member['name']) ?><?php if ($specialDayEmoji !== ''): ?> <span class="mobile-special-day"><?= e($specialDayEmoji) ?></span><?php endif; ?></span>
-                                                <div class="mobile-member-actions">
-                                                    <?php if ($eventId): ?>
-                                                        <button type="button" class="member-cell split-availability-cell mobile-availability-cell <?= $editable ? 'editable' : '' ?>" data-split-event-id="<?= $eventId ?>" data-user-id="<?= $userId ?>" data-status="<?= e($status) ?>" data-uncertain="<?= $uncertain ? '1' : '0' ?>" <?= !$editable ? 'disabled' : '' ?>></button>
-                                                        <?php if ($editable): ?><button type="button" class="mobile-options-button split-mobile-options-button" aria-label="More options for <?= e($member['name']) ?>">⋯</button><?php endif; ?>
-                                                    <?php else: ?>
-                                                        <button type="button" class="member-cell availability-cell mobile-availability-cell <?= $editable ? 'editable' : '' ?>" data-user-id="<?= $userId ?>" data-date="<?= e($day['date']) ?>" data-period="<?= e($period) ?>" data-status="<?= e($status) ?>" data-uncertain="<?= $uncertain ? '1' : '0' ?>" <?= !$editable ? 'disabled' : '' ?>></button>
-                                                        <?php if ($editable): ?><button type="button" class="mobile-options-button" aria-label="More options for <?= e($member['name']) ?>">⋯</button><?php endif; ?>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
+            <?php foreach ($mobileDays as $day): ?>
+                <?php if ($day['weekday'] === 'Monday'): ?>
+                    <section class="mobile-points-card">
+                        <div class="mobile-week-title">Week of <?= e((new DateTime($day['date']))->format('j M')) ?></div>
+                        <div class="mobile-points-columns">
+                            <div>
+                                <h3>Performance points</h3>
+                                <div class="mobile-points-grid">
+                                    <?php foreach ($members as $member): ?>
+                                        <?php $userId = (int) $member['id'];
+                                        $weekPoints = $weeklyEveningPoints[$day['date']][$userId] ?? $member['evening_starting_points'] ?? 0; ?>
+                                        <div class="mobile-point-item <?= $userId === current_user_id() ? 'current-user-mobile' : '' ?>"><span><?= e($member['name']) ?></span><strong><?= e(format_points($weekPoints)) ?></strong></div>
+                                    <?php endforeach; ?>
                                 </div>
-                            <?php endforeach; ?>
-                        </section>
-                    <?php endforeach; ?>
-                </div>
-            </article>
-        <?php endforeach; ?>
-    </div>
-</main>
+                            </div>
+                            <div>
+                                <h3>Rehearsal points</h3>
+                                <div class="mobile-points-grid">
+                                    <?php foreach ($members as $member): ?>
+                                        <?php $userId = (int) $member['id']; ?>
+                                        <div class="mobile-point-item <?= $userId === current_user_id() ? 'current-user-mobile' : '' ?>"><span><?= e($member['name']) ?></span><strong><?= e(format_points($weeklyRehearsalPoints[$day['date']][$userId] ?? $member['morning_starting_points'] ?? 0)) ?></strong></div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                <?php endif; ?>
 
-<script>window.SECTION_SCHEDULE = <?= json_encode(['csrfToken' => $csrf], JSON_UNESCAPED_SLASHES) ?>;</script>
-<script src="assets/js/app.js"></script>
-<script src="assets/js/mobile.js"></script>
-<script src="assets/js/split-events.js"></script>
+                <article class="mobile-day-card <?= $day['weekday'] === 'Sunday' ? 'mobile-week-end' : '' ?>">
+                    <header class="mobile-day-header">
+                        <div class="mobile-day-number"><?= (int) $day['day'] ?></div>
+                        <div>
+                            <div class="mobile-weekday"><?= e($day['weekday']) ?></div>
+                            <div class="mobile-date-full"><?= e((new DateTime($day['date']))->format('j F Y')) ?></div>
+                        </div>
+                    </header>
+
+                    <div class="mobile-session-grid">
+                        <?php foreach (['morning' => 'Morning', 'evening' => 'Evening'] as $period => $label): ?>
+                            <?php $periodEvents = slotEvents($day, $period, $splitEvents); ?>
+                            <section class="mobile-session">
+                                <div class="mobile-session-heading"><span><?= $period === 'evening' ? '🌙' : '☀️' ?></span><strong><?= e($label) ?></strong></div>
+
+                                <?php foreach ($periodEvents as $event): ?>
+                                    <?php $eventId = $event['id'] !== null ? (int) $event['id'] : null; ?>
+                                    <div class="mobile-event-block <?= $eventId ? 'is-split-event' : '' ?>">
+                                        <div class="mobile-activity <?= (!$eventId && is_admin()) ? 'activity-editable' : '' ?> <?= $eventId ? 'split-activity-cell' : '' ?>" data-date="<?= e($day['date']) ?>" data-period="<?= e($period) ?>" data-split-event-id="<?= $eventId ?: '' ?>"><?= e($event['activity']) ?></div>
+
+                                        <?php if (is_admin()): ?>
+                                            <?php
+                                            $mobilePointItems =
+                                                $event['point_items']
+                                                ?? [];
+                                            ?>
+                                            <?php foreach ($mobilePointItems as $pointItem): ?>
+                                                <div
+                                                    class="activity-point-editor mobile-activity-point-editor"
+                                                    data-point-source="<?= e($pointItem['source_type']) ?>"
+                                                    data-point-id="<?= (int) $pointItem['source_id'] ?>"
+                                                    data-point-type="<?= e($pointItem['point_type'] ?? '') ?>">
+                                                    <input
+
+                                                        type="number"
+
+                                                        class="activity-point-input"
+
+                                                        value="<?= e(format_points($pointItem['point_value'] ?? 0)) ?>"
+
+                                                        min="0"
+
+                                                        max="9999"
+
+                                                        step="1"
+
+                                                        inputmode="numeric"
+
+                                                        aria-label="Activity point value">
+
+                                                    <div class="activity-point-type">
+                                                        <button
+                                                            type="button"
+                                                            class="activity-point-type-button <?= ($pointItem['point_type'] ?? '') === 'rehearsal' ? 'selected' : '' ?>"
+                                                            data-point-type="rehearsal"
+                                                            title="Rehearsal points">R</button>
+
+                                                        <button
+                                                            type="button"
+                                                            class="activity-point-type-button <?= ($pointItem['point_type'] ?? '') === 'performance' ? 'selected' : '' ?>"
+                                                            data-point-type="performance"
+                                                            title="Performance points">P</button>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+
+                                        <div class="mobile-members-grid">
+                                            <?php foreach ($members as $member): ?>
+                                                <?php
+                                                $userId = (int) $member['id'];
+                                                $item = $eventId
+                                                    ? ($splitAvailability[$eventId][$userId] ?? ['status' => '', 'uncertain' => false])
+                                                    : ($availability[$day['date']][$period][$userId] ?? ['status' => '', 'uncertain' => false]);
+                                                $status = $item['status'] ?? '';
+                                                $uncertain = !empty($item['uncertain']);
+                                                $editable = is_admin() || $userId === current_user_id();
+                                                $isCurrentUser = $userId === current_user_id();
+                                                $specialDayClass = getSpecialDayClass($member, $day['date']);
+                                                $specialDayEmoji = getSpecialDayEmoji($member, $day['date']);
+                                                ?>
+                                                <div class="mobile-member-row <?= $isCurrentUser ? 'current-user-mobile' : '' ?> <?= e($specialDayClass) ?>">
+                                                    <span class="mobile-member-name"><?= e($member['name']) ?><?php if ($specialDayEmoji !== ''): ?> <span class="mobile-special-day"><?= e($specialDayEmoji) ?></span><?php endif; ?></span>
+                                                    <div class="mobile-member-actions">
+                                                        <?php if ($eventId): ?>
+                                                            <button type="button" class="member-cell split-availability-cell mobile-availability-cell <?= $editable ? 'editable' : '' ?>" data-split-event-id="<?= $eventId ?>" data-user-id="<?= $userId ?>" data-status="<?= e($status) ?>" data-uncertain="<?= $uncertain ? '1' : '0' ?>" <?= !$editable ? 'disabled' : '' ?>></button>
+                                                            <?php if ($editable): ?><button type="button" class="mobile-options-button split-mobile-options-button" aria-label="More options for <?= e($member['name']) ?>">⋯</button><?php endif; ?>
+                                                        <?php else: ?>
+                                                            <button type="button" class="member-cell availability-cell mobile-availability-cell <?= $editable ? 'editable' : '' ?>" data-user-id="<?= $userId ?>" data-date="<?= e($day['date']) ?>" data-period="<?= e($period) ?>" data-status="<?= e($status) ?>" data-uncertain="<?= $uncertain ? '1' : '0' ?>" <?= !$editable ? 'disabled' : '' ?>></button>
+                                                            <?php if ($editable): ?><button type="button" class="mobile-options-button" aria-label="More options for <?= e($member['name']) ?>">⋯</button><?php endif; ?>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </section>
+                        <?php endforeach; ?>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </main>
+
+    <script>
+        window.SECTION_SCHEDULE = <?= json_encode(['csrfToken' => $csrf], JSON_UNESCAPED_SLASHES) ?>;
+    </script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/mobile.js"></script>
+    <script src="assets/js/split-events.js"></script>
+    <script src="assets/js/split-events.js"></script>
 </body>
+
 </html>

@@ -62,8 +62,8 @@ function desktopPaperActivityParts(string $activity): array
                 $activity,
                 0,
                 mb_strlen($activity)
-                -
-                mb_strlen($match[0])
+                    -
+                    mb_strlen($match[0])
             )
         );
     }
@@ -89,33 +89,37 @@ function desktopPaperPointEditor(array $pointItem): void
         class="activity-point-editor"
         data-point-source="<?= e($pointItem['source_type']) ?>"
         data-point-id="<?= (int) $pointItem['source_id'] ?>"
-        data-point-type="<?= e($pointType) ?>"
-    >
+        data-point-type="<?= e($pointType) ?>">
         <input
+
             type="number"
+
             class="activity-point-input"
+
             value="<?= e(format_points($pointItem['point_value'] ?? 0)) ?>"
+
             min="0"
+
             max="9999"
-            step="0.25"
-            inputmode="decimal"
-            aria-label="Activity point value"
-        >
+
+            step="1"
+
+            inputmode="numeric"
+
+            aria-label="Activity point value">
 
         <div class="activity-point-type">
             <button
                 type="button"
                 class="activity-point-type-button <?= $pointType === 'rehearsal' ? 'selected' : '' ?>"
                 data-point-type="rehearsal"
-                title="Rehearsal points"
-            >R</button>
+                title="Rehearsal points">R</button>
 
             <button
                 type="button"
                 class="activity-point-type-button <?= $pointType === 'performance' ? 'selected' : '' ?>"
                 data-point-type="performance"
-                title="Performance points"
-            >P</button>
+                title="Performance points">P</button>
         </div>
     </div>
 <?php
@@ -217,8 +221,7 @@ function desktopPaperRenderRoster(
                 <div class="desktop-paper-roster-day <?= e(desktopPaperDayClass($day)) ?>">
                     <div
                         class="desktop-paper-event-grid"
-                        style="--event-count: <?= $eventCount ?>"
-                    >
+                        style="--event-count: <?= $eventCount ?>">
                         <?php foreach ($events as $event): ?>
                             <?php
                             $eventId = $event['id'] !== null ? (int) $event['id'] : null;
@@ -255,8 +258,7 @@ function desktopPaperRenderRoster(
                                                 data-user-id="<?= $userId ?>"
                                                 data-status="<?= e($status) ?>"
                                                 data-uncertain="<?= $uncertain ? '1' : '0' ?>"
-                                                <?= !$editable ? 'disabled' : '' ?>
-                                            ></button>
+                                                <?= !$editable ? 'disabled' : '' ?>></button>
                                         <?php else: ?>
                                             <button
                                                 type="button"
@@ -266,8 +268,7 @@ function desktopPaperRenderRoster(
                                                 data-period="<?= e($period) ?>"
                                                 data-status="<?= e($status) ?>"
                                                 data-uncertain="<?= $uncertain ? '1' : '0' ?>"
-                                                <?= !$editable ? 'disabled' : '' ?>
-                                            ></button>
+                                                <?= !$editable ? 'disabled' : '' ?>></button>
                                         <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
@@ -309,8 +310,7 @@ function desktopPaperRenderActivities(
                 <div class="desktop-paper-activity-day <?= e(desktopPaperDayClass($day)) ?>">
                     <div
                         class="desktop-paper-event-grid"
-                        style="--event-count: <?= $eventCount ?>"
-                    >
+                        style="--event-count: <?= $eventCount ?>">
                         <?php foreach ($events as $event): ?>
                             <?php
                             $eventId = $event['id'] !== null ? (int) $event['id'] : null;
@@ -325,8 +325,7 @@ function desktopPaperRenderActivities(
                                     <?= $activity === '' ? 'is-empty-event' : '' ?>"
                                 data-date="<?= e($day['date']) ?>"
                                 data-period="<?= e($period) ?>"
-                                data-split-event-id="<?= $eventId ?: '' ?>"
-                            >
+                                data-split-event-id="<?= $eventId ?: '' ?>">
                                 <?php
                                 $pointItems =
                                     $event['point_items']
@@ -339,7 +338,7 @@ function desktopPaperRenderActivities(
                                         [
                                             'activity' => $activity,
                                             'point_item' =>
-                                                $pointItems[0]
+                                            $pointItems[0]
                                                 ?? null,
                                         ],
                                     ];
@@ -349,10 +348,10 @@ function desktopPaperRenderActivities(
                                         array_map(
                                             static fn(array $item): array => [
                                                 'activity' =>
-                                                    $item['activity']
+                                                $item['activity']
                                                     ?? '',
                                                 'point_item' =>
-                                                    $item,
+                                                $item,
                                             ],
                                             $pointItems
                                         );
@@ -414,16 +413,10 @@ function desktopPaperRenderActivities(
 
                                             <?php
                                             if (
-                                                !empty(
-                                                    $displayItem[
-                                                        'point_item'
-                                                    ]
-                                                )
+                                                !empty($displayItem['point_item'])
                                             ) {
                                                 desktopPaperPointEditor(
-                                                    $displayItem[
-                                                        'point_item'
-                                                    ]
+                                                    $displayItem['point_item']
                                                 );
                                             }
                                             ?>
