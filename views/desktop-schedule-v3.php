@@ -15,6 +15,59 @@
 
 $desktopWeeks = array_chunk($days, 7);
 
+function renderActivityMarkup(string $text): string
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Escape everything first
+    |--------------------------------------------------------------------------
+    |
+    | This keeps arbitrary HTML/scripts impossible.
+    |
+    */
+
+    $text = htmlspecialchars(
+        $text,
+        ENT_QUOTES | ENT_SUBSTITUTE,
+        'UTF-8'
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bold: **text**
+    |--------------------------------------------------------------------------
+    */
+
+    $text = preg_replace(
+        '/\*\*(.+?)\*\*/su',
+        '<strong>$1</strong>',
+        $text
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Italic: *text*
+    |--------------------------------------------------------------------------
+    */
+
+    $text = preg_replace(
+        '/(?<!\*)\*([^*\r\n]+?)\*(?!\*)/u',
+        '<em>$1</em>',
+        $text
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | New lines
+    |--------------------------------------------------------------------------
+    */
+
+    return nl2br(
+        $text,
+        false
+    );
+}
+
 function desktopPaperActivityParts(string $activity): array
 {
     $activity = trim($activity);
@@ -387,24 +440,55 @@ function desktopPaperRenderActivities(
                                                         —
                                                     </span>
 
+                                                <?php elseif (
+                                                    str_contains($displayActivity, '**')
+                                                    ||
+                                                    preg_match('/(?<!\*)\*[^*\r\n]+\*(?!\*)/u', $displayActivity)
+                                                    ||
+                                                    str_contains($displayActivity, "\n")
+                                                ): ?>
+
+                                                    <span class="desktop-paper-activity-custom">
+                                                        <?= renderActivityMarkup($displayActivity) ?>
+                                                    </span>
+
                                                 <?php else: ?>
 
+                                                    <?php
+                                                    /*
+        |--------------------------------------------------------------------------
+        | Old automatic formatting remains for untouched imported events
+        |--------------------------------------------------------------------------
+        */
+
+                                                    $activityParts =
+                                                        desktopPaperActivityParts(
+                                                            $displayActivity
+                                                        );
+                                                    ?>
+
                                                     <?php if ($activityParts['time'] !== ''): ?>
+
                                                         <strong class="desktop-paper-activity-time">
                                                             <?= e($activityParts['time']) ?>
                                                         </strong>
+
                                                     <?php endif; ?>
 
                                                     <?php if ($activityParts['title'] !== ''): ?>
+
                                                         <span class="desktop-paper-activity-title">
                                                             <?= e($activityParts['title']) ?>
                                                         </span>
+
                                                     <?php endif; ?>
 
                                                     <?php if ($activityParts['details'] !== ''): ?>
+
                                                         <span class="desktop-paper-activity-details">
                                                             <?= e($activityParts['details']) ?>
                                                         </span>
+
                                                     <?php endif; ?>
 
                                                 <?php endif; ?>

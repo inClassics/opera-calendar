@@ -401,10 +401,10 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("resize", closeMenu);
 
   /*
-  |--------------------------------------------------------------------------
-  | Floating activity editor
-  |--------------------------------------------------------------------------
-  */
+|--------------------------------------------------------------------------
+| Floating rich activity editor
+|--------------------------------------------------------------------------
+*/
 
   const activityEditor = document.createElement("div");
 
@@ -413,85 +413,109 @@ document.addEventListener("DOMContentLoaded", () => {
   activityEditor.hidden = true;
 
   activityEditor.innerHTML = `
-    <div
-      class="activity-editor-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="activity-editor-title"
-    >
-      <div class="activity-editor-header">
+  <div
+    class="activity-editor-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="activity-editor-title"
+  >
 
-        <div>
-          <div
-            class="activity-editor-title"
-            id="activity-editor-title"
-          >
-            Edit activity
-          </div>
+    <div class="activity-editor-header">
 
-          <div class="activity-editor-meta"></div>
+      <div>
+        <div
+          class="activity-editor-title"
+          id="activity-editor-title"
+        >
+          Edit activity
         </div>
 
-        <button
-          type="button"
-          class="activity-editor-close"
-          aria-label="Close"
-        >
-          ×
-        </button>
-
+        <div class="activity-editor-meta"></div>
       </div>
 
-      <div class="activity-editor-body">
+      <button
+        type="button"
+        class="activity-editor-close"
+        aria-label="Close"
+      >
+        ×
+      </button>
 
-        <label class="activity-editor-label">
-          Activity
-
-          <textarea
-            class="activity-editor-textarea"
-            rows="7"
-            maxlength="255"
-            spellcheck="true"
-          ></textarea>
-        </label>
-
-        <div class="activity-editor-help">
-          You can use multiple lines.
-          <br>
-          Example:
-          <br>
-          <strong>11:00–14:00</strong>
-          <br>
-          Salome
-          <br>
-          (skatuves mēģinājums ar orķestri)
-        </div>
-
-      </div>
-
-      <div class="activity-editor-footer">
-
-        <button
-          type="button"
-          class="button activity-editor-cancel"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          class="button activity-editor-save"
-        >
-          Save
-        </button>
-
-      </div>
     </div>
-  `;
+
+    <div class="activity-editor-body">
+
+      <div class="activity-editor-toolbar">
+
+        <button
+          type="button"
+          class="activity-editor-tool"
+          data-command="bold"
+          title="Bold"
+        >
+          <strong>B</strong>
+        </button>
+
+        <button
+          type="button"
+          class="activity-editor-tool"
+          data-command="italic"
+          title="Italic"
+        >
+          <em>I</em>
+        </button>
+
+        <div class="activity-editor-toolbar-separator"></div>
+
+        <button
+          type="button"
+          class="activity-editor-tool activity-editor-clear-format"
+          title="Clear formatting"
+        >
+          Clear formatting
+        </button>
+
+      </div>
+
+      <div
+        class="activity-rich-editor"
+        contenteditable="true"
+        spellcheck="true"
+        role="textbox"
+        aria-multiline="true"
+      ></div>
+
+      <div class="activity-editor-help">
+        Select text and use Bold or Italic.
+        Press Enter for a new line.
+      </div>
+
+    </div>
+
+    <div class="activity-editor-footer">
+
+      <button
+        type="button"
+        class="button activity-editor-cancel"
+      >
+        Cancel
+      </button>
+
+      <button
+        type="button"
+        class="button activity-editor-save"
+      >
+        Save
+      </button>
+
+    </div>
+
+  </div>
+`;
 
   document.body.appendChild(activityEditor);
 
-  const activityEditorTextarea = activityEditor.querySelector(".activity-editor-textarea");
+  const richEditor = activityEditor.querySelector(".activity-rich-editor");
 
   const activityEditorMeta = activityEditor.querySelector(".activity-editor-meta");
 
@@ -504,12 +528,125 @@ document.addEventListener("DOMContentLoaded", () => {
   let activityEditorCell = null;
 
   /*
-  |--------------------------------------------------------------------------
-  | Build clean activity text
-  |--------------------------------------------------------------------------
+|--------------------------------------------------------------------------
+| Escape HTML
+|--------------------------------------------------------------------------
+*/
+
+  const escapeHtml = (value) => {
+    const div = document.createElement("div");
+
+    div.textContent = value;
+
+    return div.innerHTML;
+  };
+
+  /*
+|--------------------------------------------------------------------------
+| Stored markup -> editor HTML
+|--------------------------------------------------------------------------
+|
+| Database:
+|
+| **bold**
+| *italic*
+| newline
+|
+*/
+
+  const markupToHtml = (value) => {
+    let html = escapeHtml(value);
+
+    /*
+  | Bold first.
   */
 
+    html = html.replace(/\*\*(.+?)\*\*/gs, "<strong>$1</strong>");
+
+    /*
+  | Italic.
+  */
+
+    html = html.replace(/\*([^*\n]+?)\*/g, "<em>$1</em>");
+
+    html = html.replace(/\r?\n/g, "<br>");
+
+    return html;
+  };
+
+  /*
+|--------------------------------------------------------------------------
+| Rich editor HTML -> safe stored markup
+|--------------------------------------------------------------------------
+*/
+
+  const htmlToMarkup = (editor) => {
+    const walk = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.nodeValue || "";
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return "";
+      }
+
+      const tag = node.tagName.toLowerCase();
+
+      const children = Array.from(node.childNodes).map(walk).join("");
+
+      if (tag === "strong" || tag === "b") {
+        return `**${children}**`;
+      }
+
+      if (tag === "em" || tag === "i") {
+        return `*${children}*`;
+      }
+
+      if (tag === "br") {
+        return "\n";
+      }
+
+      /*
+      | Browsers often create DIV/P on Enter.
+      */
+
+      if (tag === "div" || tag === "p") {
+        return `${children}\n`;
+      }
+
+      /*
+      | Ignore all other formatting/tags,
+      | keeping only their text.
+      */
+
+      return children;
+    };
+
+    let result = Array.from(editor.childNodes).map(walk).join("");
+
+    result = result
+      .replace(/\u00a0/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    return result;
+  };
+
+  /*
+|--------------------------------------------------------------------------
+| Clean activity value from displayed cell
+|--------------------------------------------------------------------------
+*/
+
   const getActivityText = (cell) => {
+    /*
+  | Prefer original raw value if PHP provides it.
+  */
+
+    if (cell.dataset.activityRaw) {
+      return cell.dataset.activityRaw;
+    }
+
     const time = cell.querySelector(".desktop-paper-activity-time")?.textContent?.trim() || "";
 
     const title = cell.querySelector(".desktop-paper-activity-title")?.textContent?.trim() || "";
@@ -520,18 +657,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return [time, title, details].filter(Boolean).join("\n");
     }
 
-    const textContainer = cell.querySelector(".desktop-paper-activity-text");
-
-    if (textContainer) {
-      return textContainer.textContent.replace(/\s+/g, " ").trim();
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Mobile fallback
-    |--------------------------------------------------------------------------
-    */
-
     const clone = cell.cloneNode(true);
 
     clone.querySelectorAll(".activity-point-editor").forEach((element) => element.remove());
@@ -540,17 +665,17 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   /*
-  |--------------------------------------------------------------------------
-  | Open activity editor
-  |--------------------------------------------------------------------------
-  */
+|--------------------------------------------------------------------------
+| Open editor
+|--------------------------------------------------------------------------
+*/
 
   const openActivityEditor = (cell) => {
     activityEditorCell = cell;
 
-    const activity = getActivityText(cell);
+    const value = getActivityText(cell);
 
-    activityEditorTextarea.value = activity;
+    richEditor.innerHTML = markupToHtml(value);
 
     const date = cell.dataset.date || "";
 
@@ -563,17 +688,15 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.classList.add("activity-editor-open");
 
     requestAnimationFrame(() => {
-      activityEditorTextarea.focus();
-
-      activityEditorTextarea.setSelectionRange(activityEditorTextarea.value.length, activityEditorTextarea.value.length);
+      richEditor.focus();
     });
   };
 
   /*
-  |--------------------------------------------------------------------------
-  | Close activity editor
-  |--------------------------------------------------------------------------
-  */
+|--------------------------------------------------------------------------
+| Close editor
+|--------------------------------------------------------------------------
+*/
 
   const closeActivityEditor = () => {
     activityEditor.hidden = true;
@@ -582,26 +705,77 @@ document.addEventListener("DOMContentLoaded", () => {
 
     activityEditorCell = null;
 
-    activityEditorTextarea.value = "";
+    richEditor.innerHTML = "";
   };
 
   /*
-  |--------------------------------------------------------------------------
-  | Open editor when clicking activity
-  |--------------------------------------------------------------------------
-  */
+|--------------------------------------------------------------------------
+| Rich formatting toolbar
+|--------------------------------------------------------------------------
+*/
+
+  activityEditor.querySelectorAll(".activity-editor-tool[data-command]").forEach((button) => {
+    button.addEventListener("mousedown", (event) => {
+      /*
+          | Prevent selection disappearing.
+          */
+
+      event.preventDefault();
+    });
+
+    button.addEventListener("click", () => {
+      const command = button.dataset.command;
+
+      richEditor.focus();
+
+      document.execCommand(command, false, null);
+    });
+  });
+
+  /*
+|--------------------------------------------------------------------------
+| Clear formatting
+|--------------------------------------------------------------------------
+*/
+
+  activityEditor.querySelector(".activity-editor-clear-format").addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+
+  activityEditor.querySelector(".activity-editor-clear-format").addEventListener("click", () => {
+    richEditor.focus();
+
+    document.execCommand("removeFormat", false, null);
+  });
+
+  /*
+|--------------------------------------------------------------------------
+| Prevent pasted Word/web HTML
+|--------------------------------------------------------------------------
+|
+| Paste becomes plain text.
+|
+*/
+
+  richEditor.addEventListener("paste", (event) => {
+    event.preventDefault();
+
+    const text = event.clipboardData?.getData("text/plain") || "";
+
+    document.execCommand("insertText", false, text);
+  });
+
+  /*
+|--------------------------------------------------------------------------
+| Open normal activity
+|--------------------------------------------------------------------------
+*/
 
   document.querySelectorAll(".activity-editable").forEach((cell) => {
     cell.addEventListener("click", (event) => {
       if (!editingMode) {
         return;
       }
-
-      /*
-          |--------------------------------------------------------------------------
-          | Do not open editor when clicking points / R / P
-          |--------------------------------------------------------------------------
-          */
 
       if (event.target.closest(".activity-point-editor")) {
         return;
@@ -617,10 +791,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /*
-  |--------------------------------------------------------------------------
-  | Save activity
-  |--------------------------------------------------------------------------
-  */
+|--------------------------------------------------------------------------
+| Save
+|--------------------------------------------------------------------------
+*/
 
   activityEditorSave.addEventListener("click", async () => {
     if (!activityEditorCell) {
@@ -629,11 +803,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const cell = activityEditorCell;
 
-    const activity = activityEditorTextarea.value.trim();
+    const activity = htmlToMarkup(richEditor);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Current DB fields are VARCHAR(255)
+    |--------------------------------------------------------------------------
+    */
+
+    if (activity.length > 255) {
+      alert("Activity is too long. Maximum is 255 characters including formatting.");
+
+      return;
+    }
 
     activityEditorSave.disabled = true;
 
-    activityEditorTextarea.disabled = true;
+    richEditor.contentEditable = "false";
 
     const formData = new FormData();
 
@@ -657,42 +843,33 @@ document.addEventListener("DOMContentLoaded", () => {
         throw new Error(result.message || "Could not save activity.");
       }
 
-      /*
-        |--------------------------------------------------------------------------
-        | Reload after changing text
-        |--------------------------------------------------------------------------
-        |
-        | This rebuilds the formatted vertical display.
-        |
-        */
-
       window.location.reload();
     } catch (error) {
       alert(error.message);
 
       activityEditorSave.disabled = false;
 
-      activityEditorTextarea.disabled = false;
+      richEditor.contentEditable = "true";
 
-      activityEditorTextarea.focus();
+      richEditor.focus();
     }
   });
 
   /*
-  |--------------------------------------------------------------------------
-  | Cancel / close
-  |--------------------------------------------------------------------------
-  */
+|--------------------------------------------------------------------------
+| Cancel
+|--------------------------------------------------------------------------
+*/
 
   activityEditorCancel.addEventListener("click", closeActivityEditor);
 
   activityEditorClose.addEventListener("click", closeActivityEditor);
 
   /*
-  |--------------------------------------------------------------------------
-  | Click outside dialog
-  |--------------------------------------------------------------------------
-  */
+|--------------------------------------------------------------------------
+| Outside click
+|--------------------------------------------------------------------------
+*/
 
   activityEditor.addEventListener("mousedown", (event) => {
     if (event.target === activityEditor) {
@@ -701,10 +878,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /*
-  |--------------------------------------------------------------------------
-  | Keyboard
-  |--------------------------------------------------------------------------
-  */
+|--------------------------------------------------------------------------
+| Keyboard
+|--------------------------------------------------------------------------
+*/
 
   document.addEventListener("keydown", (event) => {
     if (activityEditor.hidden) {
@@ -719,33 +896,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    /*
-      |--------------------------------------------------------------------------
-      | Cmd/Ctrl + Enter = Save
-      |--------------------------------------------------------------------------
-      */
-
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
 
       activityEditorSave.click();
     }
   });
-
-  /*
-  |--------------------------------------------------------------------------
-  | IMPORTANT
-  |--------------------------------------------------------------------------
-  |
-  | app.js does NOT handle right-click activity management.
-  |
-  | split-events.js owns:
-  |
-  | - Split
-  | - Edit split event
-  | - Add split event
-  | - Delete split event
-  | - Merge back
-  |
-  */
 });
