@@ -17,26 +17,11 @@ $desktopWeeks = array_chunk($days, 7);
 
 function renderActivityMarkup(string $text): string
 {
-    /*
-    |--------------------------------------------------------------------------
-    | Escape everything first
-    |--------------------------------------------------------------------------
-    |
-    | This keeps arbitrary HTML/scripts impossible.
-    |
-    */
-
     $text = htmlspecialchars(
         $text,
         ENT_QUOTES | ENT_SUBSTITUTE,
         'UTF-8'
     );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Bold: **text**
-    |--------------------------------------------------------------------------
-    */
 
     $text = preg_replace(
         '/\*\*(.+?)\*\*/su',
@@ -44,23 +29,11 @@ function renderActivityMarkup(string $text): string
         $text
     );
 
-    /*
-    |--------------------------------------------------------------------------
-    | Italic: *text*
-    |--------------------------------------------------------------------------
-    */
-
     $text = preg_replace(
         '/(?<!\*)\*([^*\r\n]+?)\*(?!\*)/u',
         '<em>$1</em>',
         $text
     );
-
-    /*
-    |--------------------------------------------------------------------------
-    | New lines
-    |--------------------------------------------------------------------------
-    */
 
     return nl2br(
         $text,
@@ -143,38 +116,112 @@ function desktopPaperPointEditor(array $pointItem): void
         data-point-source="<?= e($pointItem['source_type']) ?>"
         data-point-id="<?= (int) $pointItem['source_id'] ?>"
         data-point-type="<?= e($pointType) ?>">
+
         <input
-
             type="number"
-
             class="activity-point-input"
-
             value="<?= e(format_points($pointItem['point_value'] ?? 0)) ?>"
-
             min="0"
-
             max="9999"
-
             step="1"
-
             inputmode="numeric"
-
             aria-label="Activity point value">
 
         <div class="activity-point-type">
+
             <button
                 type="button"
                 class="activity-point-type-button <?= $pointType === 'rehearsal' ? 'selected' : '' ?>"
                 data-point-type="rehearsal"
-                title="Rehearsal points">R</button>
+                title="Rehearsal points">
+                R
+            </button>
 
             <button
                 type="button"
                 class="activity-point-type-button <?= $pointType === 'performance' ? 'selected' : '' ?>"
                 data-point-type="performance"
-                title="Performance points">P</button>
+                title="Performance points">
+                P
+            </button>
+
         </div>
+
     </div>
+<?php
+}
+
+function desktopPaperPointBadge(?array $pointItem): void
+{
+    if (!$pointItem) {
+        return;
+    }
+
+    $pointValue =
+        (float) (
+            $pointItem['point_value']
+            ?? 0
+        );
+
+    $pointType =
+        $pointItem['point_type']
+        ?? null;
+
+    if (
+        $pointValue <= 0
+        ||
+        !in_array(
+            $pointType,
+            [
+                'rehearsal',
+                'performance'
+            ],
+            true
+        )
+    ) {
+        return;
+    }
+
+    $letter =
+        $pointType === 'rehearsal'
+        ? 'R'
+        : 'P';
+
+    $title =
+        ucfirst($pointType)
+        .
+        ' · '
+        .
+        format_points($pointValue)
+        .
+        (
+            $pointValue == 1
+            ? ' point'
+            : ' points'
+        );
+?>
+
+    <div
+        class="
+            desktop-paper-point-badge
+            desktop-paper-point-badge-<?= e($pointType) ?>
+        "
+        title="<?= e($title) ?>">
+
+        <span class="desktop-paper-point-letter">
+            <?= e($letter) ?>
+        </span>
+
+        <span class="desktop-paper-point-divider">
+            ·
+        </span>
+
+        <strong class="desktop-paper-point-number">
+            <?= e(format_points($pointValue)) ?>
+        </strong>
+
+    </div>
+
 <?php
 }
 
@@ -186,19 +233,28 @@ function desktopPaperAvailability(
     array $availability,
     array $splitAvailability
 ): array {
-    $eventId = $event['id'] !== null ? (int) $event['id'] : null;
+    $eventId =
+        $event['id'] !== null
+        ? (int) $event['id']
+        : null;
 
     if ($eventId) {
-        return $splitAvailability[$eventId][$userId] ?? [
+        return
+            $splitAvailability[$eventId][$userId]
+            ??
+            [
+                'status' => '',
+                'uncertain' => false,
+            ];
+    }
+
+    return
+        $availability[$day['date']][$period][$userId]
+        ??
+        [
             'status' => '',
             'uncertain' => false,
         ];
-    }
-
-    return $availability[$day['date']][$period][$userId] ?? [
-        'status' => '',
-        'uncertain' => false,
-    ];
 }
 
 function desktopPaperWeekNumber(array $week): string
@@ -207,22 +263,41 @@ function desktopPaperWeekNumber(array $week): string
         return '';
     }
 
-    return (new DateTime($week[0]['date']))->format('W');
+    return (new DateTime($week[0]['date']))
+        ->format('W');
 }
 
 function desktopPaperDayClass(array $day): string
 {
     $classes = [];
 
-    if (in_array($day['weekday'], ['Saturday', 'Sunday'], true)) {
-        $classes[] = 'is-weekend';
+    if (
+        in_array(
+            $day['weekday'],
+            [
+                'Saturday',
+                'Sunday'
+            ],
+            true
+        )
+    ) {
+        $classes[] =
+            'is-weekend';
     }
 
-    if ($day['date'] === date('Y-m-d')) {
-        $classes[] = 'is-today';
+    if (
+        $day['date']
+        ===
+        date('Y-m-d')
+    ) {
+        $classes[] =
+            'is-today';
     }
 
-    return implode(' ', $classes);
+    return implode(
+        ' ',
+        $classes
+    );
 }
 
 function desktopPaperRenderRoster(
@@ -245,20 +320,38 @@ function desktopPaperRenderRoster(
             </div>
 
             <?php foreach ($members as $member): ?>
+
                 <?php
-                $userId = (int) $member['id'];
-                $isCurrentUser = $userId === current_user_id();
+                $userId =
+                    (int) $member['id'];
+
+                $isCurrentUser =
+                    $userId
+                    ===
+                    current_user_id();
                 ?>
 
-                <div class="desktop-paper-person <?= $isCurrentUser ? 'current-user-desktop-row' : '' ?>">
+                <div
+                    class="
+                        desktop-paper-person
+                        <?= $isCurrentUser ? 'current-user-desktop-row' : '' ?>
+                    ">
+
                     <span class="desktop-paper-person-name">
                         <?= e($member['name']) ?>
                     </span>
 
                     <strong class="desktop-paper-person-points">
-                        <?= e(format_points($points[$userId] ?? 0)) ?>
+                        <?= e(
+                            format_points(
+                                $points[$userId]
+                                    ?? 0
+                            )
+                        ) ?>
                     </strong>
+
                 </div>
+
             <?php endforeach; ?>
 
         </div>
@@ -266,70 +359,141 @@ function desktopPaperRenderRoster(
         <div class="desktop-paper-roster-days">
 
             <?php foreach ($week as $day): ?>
+
                 <?php
-                $events = slotEvents($day, $period, $splitEvents);
-                $eventCount = max(1, count($events));
+                $events =
+                    slotEvents(
+                        $day,
+                        $period,
+                        $splitEvents
+                    );
+
+                $eventCount =
+                    max(
+                        1,
+                        count($events)
+                    );
                 ?>
 
-                <div class="desktop-paper-roster-day <?= e(desktopPaperDayClass($day)) ?>">
+                <div
+                    class="
+                        desktop-paper-roster-day
+                        <?= e(desktopPaperDayClass($day)) ?>
+                    ">
+
                     <div
                         class="desktop-paper-event-grid"
                         style="--event-count: <?= $eventCount ?>">
+
                         <?php foreach ($events as $event): ?>
+
                             <?php
-                            $eventId = $event['id'] !== null ? (int) $event['id'] : null;
+                            $eventId =
+                                $event['id'] !== null
+                                ? (int) $event['id']
+                                : null;
                             ?>
 
                             <div class="desktop-paper-event-marks">
 
                                 <?php foreach ($members as $member): ?>
+
                                     <?php
-                                    $userId = (int) $member['id'];
+                                    $userId =
+                                        (int) $member['id'];
 
-                                    $item = desktopPaperAvailability(
-                                        $event,
-                                        $day,
-                                        $period,
-                                        $userId,
-                                        $availability,
-                                        $splitAvailability
-                                    );
+                                    $item =
+                                        desktopPaperAvailability(
+                                            $event,
+                                            $day,
+                                            $period,
+                                            $userId,
+                                            $availability,
+                                            $splitAvailability
+                                        );
 
-                                    $status = $item['status'] ?? '';
-                                    $uncertain = !empty($item['uncertain']);
-                                    $editable = is_admin() || $userId === current_user_id();
-                                    $isCurrentUser = $userId === current_user_id();
-                                    $specialDayClass = getSpecialDayClass($member, $day['date']);
+                                    $status =
+                                        $item['status']
+                                        ?? '';
+
+                                    $uncertain =
+                                        !empty($item['uncertain']);
+
+                                    $editable =
+                                        is_admin()
+                                        ||
+                                        $userId
+                                        ===
+                                        current_user_id();
+
+                                    $isCurrentUser =
+                                        $userId
+                                        ===
+                                        current_user_id();
+
+                                    $specialDayClass =
+                                        getSpecialDayClass(
+                                            $member,
+                                            $day['date']
+                                        );
                                     ?>
 
-                                    <div class="desktop-paper-mark-wrap <?= $isCurrentUser ? 'current-user-column' : '' ?> <?= e($specialDayClass) ?>">
+                                    <div
+                                        class="
+                                            desktop-paper-mark-wrap
+                                            <?= $isCurrentUser ? 'current-user-column' : '' ?>
+                                            <?= e($specialDayClass) ?>
+                                        ">
+
                                         <?php if ($eventId): ?>
+
                                             <button
                                                 type="button"
-                                                class="member-cell split-availability-cell desktop-paper-mark <?= $editable ? 'editable' : '' ?>"
+                                                class="
+                                                    member-cell
+                                                    split-availability-cell
+                                                    desktop-paper-mark
+                                                    <?= $editable ? 'editable' : '' ?>
+                                                "
                                                 data-split-event-id="<?= $eventId ?>"
                                                 data-user-id="<?= $userId ?>"
                                                 data-status="<?= e($status) ?>"
                                                 data-uncertain="<?= $uncertain ? '1' : '0' ?>"
-                                                <?= !$editable ? 'disabled' : '' ?>></button>
+                                                <?= !$editable ? 'disabled' : '' ?>>
+                                            </button>
+
                                         <?php else: ?>
+
                                             <button
                                                 type="button"
-                                                class="member-cell availability-cell desktop-paper-mark <?= $editable ? 'editable' : '' ?>"
+                                                class="
+                                                    member-cell
+                                                    availability-cell
+                                                    desktop-paper-mark
+                                                    <?= $editable ? 'editable' : '' ?>
+                                                "
                                                 data-user-id="<?= $userId ?>"
                                                 data-date="<?= e($day['date']) ?>"
                                                 data-period="<?= e($period) ?>"
                                                 data-status="<?= e($status) ?>"
                                                 data-uncertain="<?= $uncertain ? '1' : '0' ?>"
-                                                <?= !$editable ? 'disabled' : '' ?>></button>
+                                                <?= !$editable ? 'disabled' : '' ?>>
+                                            </button>
+
                                         <?php endif; ?>
+
                                     </div>
+
                                 <?php endforeach; ?>
 
                             </div>
+
                         <?php endforeach; ?>
+
                     </div>
+
                 </div>
+
             <?php endforeach; ?>
 
         </div>
@@ -344,9 +508,17 @@ function desktopPaperRenderActivities(
     array $splitEvents,
     bool $isAdmin
 ): void {
-    $periodLabel = $period === 'morning' ? 'Morning' : 'Evening';
+    $periodLabel =
+        $period === 'morning'
+        ? 'Morning'
+        : 'Evening';
 ?>
-    <div class="desktop-paper-activities desktop-paper-activities-<?= e($period) ?>">
+
+    <div
+        class="
+            desktop-paper-activities
+            desktop-paper-activities-<?= e($period) ?>
+        ">
 
         <div class="desktop-paper-activities-label">
             <?= e($periodLabel) ?>
@@ -355,48 +527,77 @@ function desktopPaperRenderActivities(
         <div class="desktop-paper-activities-days">
 
             <?php foreach ($week as $day): ?>
+
                 <?php
-                $events = slotEvents($day, $period, $splitEvents);
-                $eventCount = max(1, count($events));
+                $events =
+                    slotEvents(
+                        $day,
+                        $period,
+                        $splitEvents
+                    );
+
+                $eventCount =
+                    max(
+                        1,
+                        count($events)
+                    );
                 ?>
 
-                <div class="desktop-paper-activity-day <?= e(desktopPaperDayClass($day)) ?>">
+                <div
+                    class="
+                        desktop-paper-activity-day
+                        <?= e(desktopPaperDayClass($day)) ?>
+                    ">
+
                     <div
                         class="desktop-paper-event-grid"
                         style="--event-count: <?= $eventCount ?>">
+
                         <?php foreach ($events as $event): ?>
+
                             <?php
-                            $eventId = $event['id'] !== null ? (int) $event['id'] : null;
-                            $activity = trim((string) ($event['activity'] ?? ''));
+                            $eventId =
+                                $event['id'] !== null
+                                ? (int) $event['id']
+                                : null;
+
+                            $activity =
+                                trim(
+                                    (string) (
+                                        $event['activity']
+                                        ?? ''
+                                    )
+                                );
                             ?>
 
                             <div
-                                class="desktop-paper-activity activity-cell
+                                class="
+                                    desktop-paper-activity
+                                    activity-cell
                                     <?= $period === 'morning' ? 'morning-activity' : 'evening-activity' ?>
                                     <?= (!$eventId && $isAdmin) ? 'activity-editable' : '' ?>
                                     <?= $eventId ? 'split-activity-cell' : '' ?>
-                                    <?= $activity === '' ? 'is-empty-event' : '' ?>"
+                                    <?= $activity === '' ? 'is-empty-event' : '' ?>
+                                "
                                 data-date="<?= e($day['date']) ?>"
                                 data-period="<?= e($period) ?>"
                                 data-split-event-id="<?= $eventId ?: '' ?>">
+
                                 <?php
                                 $pointItems =
                                     $event['point_items']
                                     ?? [];
 
-                                $displayItems =
-                                    count($pointItems) > 1
-                                    ? $pointItems
-                                    : [
-                                        [
-                                            'activity' => $activity,
-                                            'point_item' =>
-                                            $pointItems[0]
-                                                ?? null,
-                                        ],
-                                    ];
+                                /*
+                                |--------------------------------------------------------------------------
+                                | Several imported events can live in one physical slot
+                                |--------------------------------------------------------------------------
+                                */
 
-                                if (count($pointItems) > 1) {
+                                if (
+                                    count($pointItems)
+                                    > 1
+                                ) {
                                     $displayItems =
                                         array_map(
                                             static fn(array $item): array => [
@@ -408,6 +609,16 @@ function desktopPaperRenderActivities(
                                             ],
                                             $pointItems
                                         );
+                                } else {
+                                    $displayItems = [
+                                        [
+                                            'activity' =>
+                                            $activity,
+                                            'point_item' =>
+                                            $pointItems[0]
+                                                ?? null,
+                                        ],
+                                    ];
                                 }
                                 ?>
 
@@ -424,10 +635,9 @@ function desktopPaperRenderActivities(
                                                 )
                                             );
 
-                                        $activityParts =
-                                            desktopPaperActivityParts(
-                                                $displayActivity
-                                            );
+                                        $pointItem =
+                                            $displayItem['point_item']
+                                            ?? null;
                                         ?>
 
                                         <div class="desktop-paper-activity-item">
@@ -441,33 +651,41 @@ function desktopPaperRenderActivities(
                                                     </span>
 
                                                 <?php elseif (
-                                                    str_contains($displayActivity, '**')
+                                                    str_contains(
+                                                        $displayActivity,
+                                                        '**'
+                                                    )
                                                     ||
-                                                    preg_match('/(?<!\*)\*[^*\r\n]+\*(?!\*)/u', $displayActivity)
+                                                    preg_match(
+                                                        '/(?<!\*)\*[^*\r\n]+\*(?!\*)/u',
+                                                        $displayActivity
+                                                    )
                                                     ||
-                                                    str_contains($displayActivity, "\n")
+                                                    str_contains(
+                                                        $displayActivity,
+                                                        "\n"
+                                                    )
                                                 ): ?>
 
                                                     <span class="desktop-paper-activity-custom">
-                                                        <?= renderActivityMarkup($displayActivity) ?>
+                                                        <?= renderActivityMarkup(
+                                                            $displayActivity
+                                                        ) ?>
                                                     </span>
 
                                                 <?php else: ?>
 
                                                     <?php
-                                                    /*
-        |--------------------------------------------------------------------------
-        | Old automatic formatting remains for untouched imported events
-        |--------------------------------------------------------------------------
-        */
-
                                                     $activityParts =
                                                         desktopPaperActivityParts(
                                                             $displayActivity
                                                         );
                                                     ?>
 
-                                                    <?php if ($activityParts['time'] !== ''): ?>
+                                                    <?php if (
+                                                        $activityParts['time']
+                                                        !== ''
+                                                    ): ?>
 
                                                         <strong class="desktop-paper-activity-time">
                                                             <?= e($activityParts['time']) ?>
@@ -475,7 +693,10 @@ function desktopPaperRenderActivities(
 
                                                     <?php endif; ?>
 
-                                                    <?php if ($activityParts['title'] !== ''): ?>
+                                                    <?php if (
+                                                        $activityParts['title']
+                                                        !== ''
+                                                    ): ?>
 
                                                         <span class="desktop-paper-activity-title">
                                                             <?= e($activityParts['title']) ?>
@@ -483,7 +704,10 @@ function desktopPaperRenderActivities(
 
                                                     <?php endif; ?>
 
-                                                    <?php if ($activityParts['details'] !== ''): ?>
+                                                    <?php if (
+                                                        $activityParts['details']
+                                                        !== ''
+                                                    ): ?>
 
                                                         <span class="desktop-paper-activity-details">
                                                             <?= e($activityParts['details']) ?>
@@ -496,11 +720,32 @@ function desktopPaperRenderActivities(
                                             </span>
 
                                             <?php
-                                            if (
-                                                !empty($displayItem['point_item'])
-                                            ) {
+                                            /*
+                                            |--------------------------------------------------------------------------
+                                            | Compact permanent badge
+                                            |--------------------------------------------------------------------------
+                                            |
+                                            | Examples:
+                                            |
+                                            | R · 3
+                                            | P · 2
+                                            |
+                                            */
+                                            desktopPaperPointBadge(
+                                                $pointItem
+                                            );
+                                            ?>
+
+                                            <?php
+                                            /*
+                                            |--------------------------------------------------------------------------
+                                            | Admin point editor
+                                            |--------------------------------------------------------------------------
+                                            */
+
+                                            if ($pointItem) {
                                                 desktopPaperPointEditor(
-                                                    $displayItem['point_item']
+                                                    $pointItem
                                                 );
                                             }
                                             ?>
@@ -510,15 +755,21 @@ function desktopPaperRenderActivities(
                                     <?php endforeach; ?>
 
                                 </div>
+
                             </div>
+
                         <?php endforeach; ?>
+
                     </div>
+
                 </div>
+
             <?php endforeach; ?>
 
         </div>
 
     </div>
+
 <?php
 }
 ?>
@@ -526,26 +777,36 @@ function desktopPaperRenderActivities(
 <div class="desktop-schedule desktop-paper-schedule">
 
     <?php foreach ($desktopWeeks as $week): ?>
+
         <?php
-        $mondayDate = $week[0]['date'] ?? null;
-        $weekNumber = desktopPaperWeekNumber($week);
+        $mondayDate =
+            $week[0]['date']
+            ?? null;
 
-        $eveningWeekPoints = [];
+        $weekNumber =
+            desktopPaperWeekNumber(
+                $week
+            );
 
-        if ($mondayDate) {
-            foreach ($members as $member) {
-                $userId = (int) $member['id'];
+        /*
+        |--------------------------------------------------------------------------
+        | Points displayed at beginning of week
+        |--------------------------------------------------------------------------
+        */
 
-                $eveningWeekPoints[$userId] =
-                    $weeklyEveningPoints[$mondayDate][$userId]
-                    ?? $member['evening_starting_points']
-                    ?? 0;
-            }
-        }
+        $performanceWeekPoints =
+            $weeklyPerformancePoints[$mondayDate]
+            ??
+            array_column(
+                $members,
+                'evening_starting_points',
+                'id'
+            );
 
-        $morningWeekPoints =
+        $rehearsalWeekPoints =
             $weeklyRehearsalPoints[$mondayDate]
-            ?? array_column(
+            ??
+            array_column(
                 $members,
                 'morning_starting_points',
                 'id'
@@ -555,22 +816,54 @@ function desktopPaperRenderActivities(
         <article class="desktop-paper-week">
 
             <header class="desktop-paper-week-header">
+
                 <div class="desktop-paper-week-title">
                     Week <?= e($weekNumber) ?>
                 </div>
 
                 <div class="desktop-paper-day-headings">
+
                     <?php foreach ($week as $day): ?>
-                        <div class="desktop-paper-day-heading <?= e(desktopPaperDayClass($day)) ?>">
-                            <strong><?= e(strtoupper($day['weekday_short'])) ?></strong>
-                            <span><?= (new DateTime($day['date']))->format('j/n') ?></span>
+
+                        <div
+                            class="
+                                desktop-paper-day-heading
+                                <?= e(desktopPaperDayClass($day)) ?>
+                            ">
+
+                            <strong>
+                                <?= e(
+                                    strtoupper(
+                                        $day['weekday_short']
+                                    )
+                                ) ?>
+                            </strong>
+
+                            <span>
+                                <?= (
+                                    new DateTime(
+                                        $day['date']
+                                    )
+                                )->format('j/n') ?>
+                            </span>
+
                         </div>
+
                     <?php endforeach; ?>
+
                 </div>
+
             </header>
 
             <?php
-            /* 1. Morning names + crosses/dots */
+            /*
+            |--------------------------------------------------------------------------
+            | 1. Morning availability
+            |
+            | Points shown = rehearsal points
+            |--------------------------------------------------------------------------
+            */
+
             desktopPaperRenderRoster(
                 'morning',
                 $week,
@@ -578,10 +871,15 @@ function desktopPaperRenderActivities(
                 $availability,
                 $splitEvents,
                 $splitAvailability,
-                $morningWeekPoints
+                $rehearsalWeekPoints
             );
 
-            /* 2. Morning activities directly above dates */
+            /*
+            |--------------------------------------------------------------------------
+            | 2. Morning activities
+            |--------------------------------------------------------------------------
+            */
+
             desktopPaperRenderActivities(
                 'morning',
                 $week,
@@ -590,22 +888,55 @@ function desktopPaperRenderActivities(
             );
             ?>
 
-            <!-- 3. Dates -->
+            <!--
+            |--------------------------------------------------------------------------
+            | 3. Date axis
+            |--------------------------------------------------------------------------
+            -->
+
             <div class="desktop-paper-date-axis">
-                <div class="desktop-paper-date-label">Date</div>
+
+                <div class="desktop-paper-date-label">
+                    Date
+                </div>
 
                 <div class="desktop-paper-date-days">
+
                     <?php foreach ($week as $day): ?>
-                        <div class="desktop-paper-date-cell <?= e(desktopPaperDayClass($day)) ?>">
-                            <strong><?= (int) $day['day'] ?></strong>
-                            <span><?= e(strtoupper($day['weekday_short'])) ?></span>
+
+                        <div
+                            class="
+                                desktop-paper-date-cell
+                                <?= e(desktopPaperDayClass($day)) ?>
+                            ">
+
+                            <strong>
+                                <?= (int) $day['day'] ?>
+                            </strong>
+
+                            <span>
+                                <?= e(
+                                    strtoupper(
+                                        $day['weekday_short']
+                                    )
+                                ) ?>
+                            </span>
+
                         </div>
+
                     <?php endforeach; ?>
+
                 </div>
+
             </div>
 
             <?php
-            /* 4. Evening activities directly below dates */
+            /*
+            |--------------------------------------------------------------------------
+            | 4. Evening activities
+            |--------------------------------------------------------------------------
+            */
+
             desktopPaperRenderActivities(
                 'evening',
                 $week,
@@ -613,7 +944,14 @@ function desktopPaperRenderActivities(
                 is_admin()
             );
 
-            /* 5. Evening names + crosses/dots */
+            /*
+            |--------------------------------------------------------------------------
+            | 5. Evening availability
+            |
+            | Points shown = performance points
+            |--------------------------------------------------------------------------
+            */
+
             desktopPaperRenderRoster(
                 'evening',
                 $week,
@@ -621,11 +959,12 @@ function desktopPaperRenderActivities(
                 $availability,
                 $splitEvents,
                 $splitAvailability,
-                $eveningWeekPoints
+                $performanceWeekPoints
             );
             ?>
 
         </article>
+
     <?php endforeach; ?>
 
 </div>

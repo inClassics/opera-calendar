@@ -144,13 +144,17 @@ $pointActivityItems =
 | Cumulative rehearsal / performance points
 |--------------------------------------------------------------------------
 |
-| Old weekday/weekend multipliers are no longer used.
+| IMPORTANT:
 |
-| Every activity explicitly defines:
-|   point_value
-|   point_type = rehearsal | performance
+| Physical period and point category are completely independent.
 |
-| A cross adds that exact value to the matching total.
+| morning rehearsal     -> rehearsal total
+| evening rehearsal     -> rehearsal total
+| morning performance   -> performance total
+| evening performance   -> performance total
+|
+| Rehearsal totals are DISPLAYED in the upper/morning points table.
+| Performance totals are DISPLAYED in the lower/evening points table.
 |
 */
 
@@ -163,8 +167,9 @@ foreach ($members as $member) {
         (int) $member['id'];
 
     /*
-    | Existing "morning" starting points become rehearsal starting points.
-    | Existing "evening" starting points become performance starting points.
+    |--------------------------------------------------------------------------
+    | Season starting values
+    |--------------------------------------------------------------------------
     */
 
     $runningRehearsalPoints[$userId] =
@@ -180,8 +185,120 @@ foreach ($members as $member) {
         );
 }
 
+/*
+|--------------------------------------------------------------------------
+| Weekly snapshots
+|--------------------------------------------------------------------------
+|
+| The value stored for Monday is the total BEFORE Monday's activities.
+|
+*/
+
 $weeklyRehearsalPoints = [];
 $weeklyPerformancePoints = [];
+
+/*
+|--------------------------------------------------------------------------
+| Helper: add one activity to the correct calculator
+|--------------------------------------------------------------------------
+*/
+
+$addActivityPoints = function (
+    float $pointValue,
+    ?string $pointType,
+    array $activityAvailability
+) use (
+    &$runningRehearsalPoints,
+    &$runningPerformancePoints,
+    $members
+): void {
+
+    /*
+    |--------------------------------------------------------------------------
+    | No valid points
+    |--------------------------------------------------------------------------
+    */
+
+    if ($pointValue <= 0) {
+        return;
+    }
+
+    if (
+        !in_array(
+            $pointType,
+            [
+                'rehearsal',
+                'performance'
+            ],
+            true
+        )
+    ) {
+        return;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Check every musician
+    |--------------------------------------------------------------------------
+    */
+
+    foreach ($members as $member) {
+
+        $userId =
+            (int) $member['id'];
+
+        $availabilityItem =
+            $activityAvailability[$userId]
+            ?? null;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Only a CROSS counts
+        |--------------------------------------------------------------------------
+        |
+        | available = cross
+        | unavailable = dot
+        | blank = no points
+        |
+        | "uncertain" does not change the point value:
+        | an available + uncertain cell still has a cross.
+        |
+        */
+
+        if (
+            !is_array($availabilityItem)
+            ||
+            ($availabilityItem['status'] ?? '')
+            !== 'available'
+        ) {
+            continue;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Route by point TYPE, NOT by morning/evening
+        |--------------------------------------------------------------------------
+        */
+
+        if ($pointType === 'rehearsal') {
+
+            $runningRehearsalPoints[$userId] +=
+                $pointValue;
+        } elseif (
+            $pointType === 'performance'
+        ) {
+
+            $runningPerformancePoints[$userId] +=
+                $pointValue;
+        }
+    }
+};
+
+/*
+|--------------------------------------------------------------------------
+| Calculate from season start until displayed calendar end
+|--------------------------------------------------------------------------
+*/
 
 $calculationDate =
     clone $seasonStartDate;
@@ -202,9 +319,15 @@ while (
             ->format('N');
 
     /*
-    | Totals displayed at the beginning of each week,
-    | before Monday's activities are added.
+    |--------------------------------------------------------------------------
+    | Monday snapshot
+    |--------------------------------------------------------------------------
+    |
+    | Snapshot FIRST.
+    | Then Monday's events are counted.
+    |
     */
+
     if ($weekdayNumber === 1) {
 
         $weeklyRehearsalPoints[$date] =
@@ -214,30 +337,50 @@ while (
             $runningPerformancePoints;
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Scan BOTH physical periods
+    |--------------------------------------------------------------------------
+    |
+    | We deliberately don't care which calculator they belong to yet.
+    |
+    */
+
     foreach (
         ['morning', 'evening']
         as $period
     ) {
 
+        /*
+        |--------------------------------------------------------------------------
+        | Split events
+        |--------------------------------------------------------------------------
+        |
+        | Once a slot is split, each split activity has:
+        |
+        | - its own points
+        | - its own R/P type
+        | - its own availability
+        |
+        */
+
         $splitForSlot =
             $pointSplitEvents[$date][$period]
             ?? [];
 
-        /*
-        |--------------------------------------------------------------------------
-        | Explicitly split activities
-        |--------------------------------------------------------------------------
-        */
+        if (!empty($splitForSlot)) {
 
-        if ($splitForSlot) {
-
-            foreach (
-                $splitForSlot
-                as $event
-            ) {
+            foreach ($splitForSlot as $event) {
 
                 $eventId =
-                    (int) $event['id'];
+                    (int) (
+                        $event['id']
+                        ?? 0
+                    );
+
+                if ($eventId <= 0) {
+                    continue;
+                }
 
                 $pointValue =
                     (float) (
@@ -249,64 +392,51 @@ while (
                     $event['point_type']
                     ?? null;
 
-                if (
-                    $pointValue <= 0
-                    ||
-                    !in_array(
-                        $pointType,
-                        [
-                            'rehearsal',
-                            'performance'
-                        ],
-                        true
-                    )
-                ) {
-                    continue;
-                }
+                $eventAvailability =
+                    $pointSplitAvailability[$eventId]
+                    ?? [];
 
-                foreach (
-                    $members
-                    as $member
-                ) {
+                /*
+                |--------------------------------------------------------------------------
+                | Route this activity to rehearsal/performance calculator
+                |--------------------------------------------------------------------------
+                */
 
-                    $userId =
-                        (int) $member['id'];
-
-                    $item =
-                        $pointSplitAvailability[$eventId][$userId]
-                        ?? null;
-
-                    if (
-                        !is_array($item)
-                        ||
-                        ($item['status'] ?? '')
-                        !== 'available'
-                    ) {
-                        continue;
-                    }
-
-                    if (
-                        $pointType
-                        === 'rehearsal'
-                    ) {
-                        $runningRehearsalPoints[$userId] += $pointValue;
-                    } else {
-                        $runningPerformancePoints[$userId] += $pointValue;
-                    }
-                }
+                $addActivityPoints(
+                    $pointValue,
+                    $pointType,
+                    $eventAvailability
+                );
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Important
+            |--------------------------------------------------------------------------
+            |
+            | A split slot replaces normal slot calculation.
+            | Otherwise we would count the same activities twice.
+            |
+            */
 
             continue;
         }
 
         /*
         |--------------------------------------------------------------------------
-        | Normal slot
+        | Normal unsplit slot
         |--------------------------------------------------------------------------
         |
-        | One slot-level cross applies to the activities in that slot.
-        | If there are several imported activities and they need different
-        | availability, split the slot first.
+        | A normal slot may contain one or several point items.
+        |
+        | They share the normal slot availability.
+        |
+        | Example:
+        |
+        | 11:00 rehearsal, 3 pts
+        | 13:00 performance, 2 pts
+        |
+        | If both genuinely have different people, the slot should be split.
         |
         */
 
@@ -314,67 +444,37 @@ while (
             $pointActivityItems[$date][$period]
             ?? [];
 
-        if (!$pointItems) {
+        if (empty($pointItems)) {
             continue;
         }
 
-        foreach (
-            $members
-            as $member
-        ) {
+        $slotAvailability =
+            $pointsAvailability[$date][$period]
+            ?? [];
 
-            $userId =
-                (int) $member['id'];
+        foreach ($pointItems as $pointItem) {
 
-            $availabilityItem =
-                $pointsAvailability[$date][$period][$userId]
+            $pointValue =
+                (float) (
+                    $pointItem['point_value']
+                    ?? 0
+                );
+
+            $pointType =
+                $pointItem['point_type']
                 ?? null;
 
-            if (
-                !is_array(
-                    $availabilityItem
-                )
-                ||
-                (
-                    $availabilityItem['status']
-                    ?? ''
-                )
-                !== 'available'
-            ) {
-                continue;
-            }
+            /*
+            |--------------------------------------------------------------------------
+            | Again: physical period is irrelevant here.
+            |--------------------------------------------------------------------------
+            */
 
-            foreach (
-                $pointItems
-                as $pointItem
-            ) {
-
-                $pointValue =
-                    (float) (
-                        $pointItem['point_value']
-                        ?? 0
-                    );
-
-                $pointType =
-                    $pointItem['point_type']
-                    ?? null;
-
-                if ($pointValue <= 0) {
-                    continue;
-                }
-
-                if (
-                    $pointType
-                    === 'rehearsal'
-                ) {
-                    $runningRehearsalPoints[$userId] += $pointValue;
-                } elseif (
-                    $pointType
-                    === 'performance'
-                ) {
-                    $runningPerformancePoints[$userId] += $pointValue;
-                }
-            }
+            $addActivityPoints(
+                $pointValue,
+                $pointType,
+                $slotAvailability
+            );
         }
     }
 
@@ -383,9 +483,17 @@ while (
 }
 
 /*
-| Keep these aliases for existing view code.
-| "Morning points" now means rehearsal points.
-| "Evening points" now means performance points.
+|--------------------------------------------------------------------------
+| Compatibility aliases
+|--------------------------------------------------------------------------
+|
+| Existing view code may still call these "morning/evening".
+|
+| But semantically:
+|
+| morning points = REHEARSAL
+| evening points = PERFORMANCE
+|
 */
 
 $runningMorningPoints =
@@ -396,8 +504,6 @@ $runningEveningPoints =
 
 $weeklyEveningPoints =
     $weeklyPerformancePoints;
-
-$csrf = csrf_token();
 ?>
 <!doctype html>
 <html lang="en">
