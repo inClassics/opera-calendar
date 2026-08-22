@@ -282,11 +282,15 @@ class Schedule
                 se.activity_override,
                 se.sort_order,
                 se.calendar_event_id,
+                se.point_value AS split_point_value,
+                se.point_type AS split_point_type,
 
                 ce.summary AS calendar_summary,
                 ce.start_local AS calendar_start_local,
                 ce.end_local AS calendar_end_local,
-                ce.sync_status AS calendar_sync_status
+                ce.sync_status AS calendar_sync_status,
+                ce.point_value AS calendar_point_value,
+                ce.point_type AS calendar_point_type
 
              FROM schedule_split_events se
 
@@ -386,6 +390,57 @@ class Schedule
                 'has_override' =>
                     $row['activity_override']
                     !== null,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Point source
+                |--------------------------------------------------------------------------
+                |
+                | Linked imported split events keep their point settings on the
+                | calendar event. Manual split events keep them locally.
+                |
+                */
+
+                'point_value' =>
+                    (float) (
+                        !empty($row['calendar_event_id'])
+                        ? ($row['calendar_point_value'] ?? 0)
+                        : ($row['split_point_value'] ?? 0)
+                    ),
+
+                'point_type' =>
+                    !empty($row['calendar_event_id'])
+                    ? ($row['calendar_point_type'] ?? null)
+                    : ($row['split_point_type'] ?? null),
+
+                'point_items' => [
+                    [
+                        'source_type' =>
+                            !empty($row['calendar_event_id'])
+                            ? 'calendar'
+                            : 'split',
+
+                        'source_id' =>
+                            !empty($row['calendar_event_id'])
+                            ? (int) $row['calendar_event_id']
+                            : (int) $row['id'],
+
+                        'activity' =>
+                            $activity,
+
+                        'point_value' =>
+                            (float) (
+                                !empty($row['calendar_event_id'])
+                                ? ($row['calendar_point_value'] ?? 0)
+                                : ($row['split_point_value'] ?? 0)
+                            ),
+
+                        'point_type' =>
+                            !empty($row['calendar_event_id'])
+                            ? ($row['calendar_point_type'] ?? null)
+                            : ($row['split_point_type'] ?? null),
+                    ],
+                ],
             ];
         }
 
@@ -1381,6 +1436,241 @@ class Schedule
             'ambiguous' => $ambiguous,
             'unmatched' => $unmatched,
         ];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Point metadata for normal (not explicitly split) slots
+    |--------------------------------------------------------------------------
+    |
+    | Manual schedule_slots take precedence over imported calendar events,
+    | exactly like loadSlots().
+    |
+    | If a normal slot contains several imported calendar events, all events are
+    | returned. The single slot availability applies to all of them until the
+    | slot is explicitly split.
+    |
+    */
+
+    public function activityPointItemsForMonth(
+        DateTime $firstDay,
+        DateTime $lastDay
+    ): array {
+        $result = [];
+
+        $manualStmt =
+            $this->pdo->prepare("
+                SELECT
+                    id,
+                    schedule_date,
+                    period,
+                    activity,
+                    point_value,
+                    point_type
+                FROM schedule_slots
+                WHERE schedule_date BETWEEN ? AND ?
+            ");
+
+        $manualStmt->execute([
+            $firstDay->format('Y-m-d'),
+            $lastDay->format('Y-m-d')
+        ]);
+
+        $manualSlots = [];
+
+        foreach ($manualStmt->fetchAll() as $row) {
+
+            $manualSlots[
+                $row['schedule_date']
+            ][
+                $row['period']
+            ] = true;
+
+            $result[
+                $row['schedule_date']
+            ][
+                $row['period']
+            ][] = [
+                'source_type' => 'slot',
+                'source_id' => (int) $row['id'],
+                'activity' => $row['activity'],
+                'point_value' => (float) $row['point_value'],
+                'point_type' => $row['point_type'],
+            ];
+        }
+
+        $calendarStmt =
+            $this->pdo->prepare("
+                SELECT
+                    id,
+                    schedule_date,
+                    period,
+                    summary,
+                    start_local,
+                    end_local,
+                    sync_status,
+                    point_value,
+                    point_type
+                FROM calendar_events
+                WHERE schedule_date BETWEEN ? AND ?
+                ORDER BY start_local ASC, id ASC
+            ");
+
+        $calendarStmt->execute([
+            $firstDay->format('Y-m-d'),
+            $lastDay->format('Y-m-d')
+        ]);
+
+        foreach ($calendarStmt->fetchAll() as $row) {
+
+            /*
+            | A manual slot overrides source-calendar display for this date/period,
+            | so its point settings override the imported events as well.
+            */
+            if (
+                !empty(
+                    $manualSlots[
+                        $row['schedule_date']
+                    ][
+                        $row['period']
+                    ]
+                )
+            ) {
+                continue;
+            }
+
+            $activity =
+                $this->formatCalendarEvent(
+                    $row
+                );
+
+            if (
+                ($row['sync_status'] ?? 'active')
+                === 'missing'
+            ) {
+                $activity =
+                    '⚠ ' .
+                    $activity;
+            }
+
+            $result[
+                $row['schedule_date']
+            ][
+                $row['period']
+            ][] = [
+                'source_type' => 'calendar',
+                'source_id' => (int) $row['id'],
+                'activity' => $activity,
+                'point_value' => (float) $row['point_value'],
+                'point_type' => $row['point_type'],
+            ];
+        }
+
+        return $result;
+    }
+
+    public function updateActivityPoints(
+        string $sourceType,
+        int $sourceId,
+        float $pointValue,
+        ?string $pointType,
+        int $updatedBy
+    ): void {
+        if ($pointValue < 0 || $pointValue > 9999) {
+            throw new RuntimeException(
+                'Point value is outside the allowed range.'
+            );
+        }
+
+        if (
+            $pointType !== null
+            &&
+            !in_array(
+                $pointType,
+                ['rehearsal', 'performance'],
+                true
+            )
+        ) {
+            throw new RuntimeException(
+                'Invalid point type.'
+            );
+        }
+
+        $table = match ($sourceType) {
+            'calendar' => 'calendar_events',
+            'split' => 'schedule_split_events',
+            'slot' => 'schedule_slots',
+            default => null,
+        };
+
+        if ($table === null) {
+            throw new RuntimeException(
+                'Invalid activity source.'
+            );
+        }
+
+        /*
+        | All three tables have updated_at. schedule_slots and split events also
+        | have updated_by; calendar_events does not use local updated_by.
+        */
+        if ($sourceType === 'calendar') {
+
+            $stmt =
+                $this->pdo->prepare("
+                    UPDATE calendar_events
+                    SET point_value = ?,
+                        point_type = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ");
+
+            $stmt->execute([
+                $pointValue,
+                $pointType,
+                $sourceId
+            ]);
+
+        } else {
+
+            $stmt =
+                $this->pdo->prepare("
+                    UPDATE {$table}
+                    SET point_value = ?,
+                        point_type = ?,
+                        updated_by = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ");
+
+            $stmt->execute([
+                $pointValue,
+                $pointType,
+                $updatedBy,
+                $sourceId
+            ]);
+        }
+
+        if ($stmt->rowCount() === 0) {
+
+            $check =
+                $this->pdo->prepare("
+                    SELECT id
+                    FROM {$table}
+                    WHERE id = ?
+                    LIMIT 1
+                ");
+
+            $check->execute([
+                $sourceId
+            ]);
+
+            if (!$check->fetch()) {
+                throw new RuntimeException(
+                    'Activity not found.'
+                );
+            }
+        }
     }
 
 }

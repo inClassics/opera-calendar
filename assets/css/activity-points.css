@@ -1,0 +1,9 @@
+/*
+|--------------------------------------------------------------------------
+| Activity point controls shared helpers
+|--------------------------------------------------------------------------
+*/
+
+body:not(.editing-mode) .activity-point-editor {
+  display: none !important;
+}

@@ -28,14 +28,51 @@ function getSpecialDayEmoji(array $member, string $date): string
 
 function slotEvents(array $day, string $period, array $splitEvents): array
 {
-    $events = $splitEvents[$day['date']][$period] ?? [];
-    if ($events) return $events;
+    $events =
+        $splitEvents[
+            $day['date']
+        ][
+            $period
+        ]
+        ?? [];
+
+    if ($events) {
+        return $events;
+    }
+
+    $pointItems =
+        $GLOBALS['activityPointItems'][
+            $day['date']
+        ][
+            $period
+        ]
+        ?? [];
 
     return [[
         'id' => null,
         'activity' => $day[$period] ?? '',
         'sort_order' => 0,
+        'point_items' => $pointItems,
     ]];
+}
+
+function format_points(float|int $value): string
+{
+    $formatted =
+        number_format(
+            (float) $value,
+            2,
+            '.',
+            ''
+        );
+
+    return rtrim(
+        rtrim(
+            $formatted,
+            '0'
+        ),
+        '.'
+    );
 }
 
 $userRepository = new User($pdo);
@@ -63,6 +100,16 @@ $availability = $scheduleRepository->availabilityForMonth($context['firstDay'], 
 $splitEvents = $scheduleRepository->splitEventsForMonth($context['firstDay'], $context['lastDay']);
 $splitAvailability = $scheduleRepository->splitAvailabilityForMonth($context['firstDay'], $context['lastDay']);
 
+$activityPointItems =
+    $scheduleRepository
+        ->activityPointItemsForMonth(
+            $context['firstDay'],
+            $context['lastDay']
+        );
+
+$GLOBALS['activityPointItems'] =
+    $activityPointItems;
+
 $today = new DateTime('today');
 $currentWeekStart = clone $today;
 if ((int) $currentWeekStart->format('N') !== 1) $currentWeekStart->modify('monday this week');
@@ -72,43 +119,324 @@ $mobileDays = array_values(array_filter(
     static fn(array $day) => new DateTime($day['date']) >= $currentWeekStart
 ));
 
-$pointsAvailability = $scheduleRepository->availabilityForMonth($seasonStartDate, $context['lastDay']);
-$pointSplitEvents = $scheduleRepository->splitEventsForMonth($seasonStartDate, $context['lastDay']);
-$pointSplitAvailability = $scheduleRepository->splitAvailabilityForMonth($seasonStartDate, $context['lastDay']);
+$pointsAvailability =
+    $scheduleRepository
+        ->availabilityForMonth(
+            $seasonStartDate,
+            $context['lastDay']
+        );
 
-$weeklyEveningPoints = [];
-$calculationDate = clone $seasonStartDate;
-while ($calculationDate <= $context['lastDay']) {
-    $date = $calculationDate->format('Y-m-d');
-    $weekdayNumber = (int) $calculationDate->format('N');
+$pointSplitEvents =
+    $scheduleRepository
+        ->splitEventsForMonth(
+            $seasonStartDate,
+            $context['lastDay']
+        );
 
+$pointSplitAvailability =
+    $scheduleRepository
+        ->splitAvailabilityForMonth(
+            $seasonStartDate,
+            $context['lastDay']
+        );
+
+$pointActivityItems =
+    $scheduleRepository
+        ->activityPointItemsForMonth(
+            $seasonStartDate,
+            $context['lastDay']
+        );
+
+/*
+|--------------------------------------------------------------------------
+| Cumulative rehearsal / performance points
+|--------------------------------------------------------------------------
+|
+| Old weekday/weekend multipliers are no longer used.
+|
+| Every activity explicitly defines:
+|   point_value
+|   point_type = rehearsal | performance
+|
+| A cross adds that exact value to the matching total.
+|
+*/
+
+$runningRehearsalPoints = [];
+$runningPerformancePoints = [];
+
+foreach ($members as $member) {
+
+    $userId =
+        (int) $member['id'];
+
+    /*
+    | Existing "morning" starting points become rehearsal starting points.
+    | Existing "evening" starting points become performance starting points.
+    */
+
+    $runningRehearsalPoints[$userId] =
+        (float) (
+            $member['morning_starting_points']
+            ?? 0
+        );
+
+    $runningPerformancePoints[$userId] =
+        (float) (
+            $member['evening_starting_points']
+            ?? 0
+        );
+}
+
+$weeklyRehearsalPoints = [];
+$weeklyPerformancePoints = [];
+
+$calculationDate =
+    clone $seasonStartDate;
+
+while (
+    $calculationDate
+    <=
+    $context['lastDay']
+) {
+
+    $date =
+        $calculationDate
+            ->format('Y-m-d');
+
+    $weekdayNumber =
+        (int)
+        $calculationDate
+            ->format('N');
+
+    /*
+    | Totals displayed at the beginning of each week,
+    | before Monday's activities are added.
+    */
     if ($weekdayNumber === 1) {
-        $weeklyEveningPoints[$date] = $runningEveningPoints;
+
+        $weeklyRehearsalPoints[$date] =
+            $runningRehearsalPoints;
+
+        $weeklyPerformancePoints[$date] =
+            $runningPerformancePoints;
     }
 
-    $pointsForCross = $weekdayNumber >= 6 ? 2 : 1;
-    $eveningSplit = $pointSplitEvents[$date]['evening'] ?? [];
+    foreach (
+        ['morning', 'evening']
+        as $period
+    ) {
 
-    foreach ($members as $member) {
-        $userId = (int) $member['id'];
+        $splitForSlot =
+            $pointSplitEvents[
+                $date
+            ][
+                $period
+            ]
+            ?? [];
 
-        if ($eveningSplit) {
-            foreach ($eveningSplit as $event) {
-                $item = $pointSplitAvailability[(int) $event['id']][$userId] ?? null;
-                if (is_array($item) && ($item['status'] ?? '') === 'available') {
-                    $runningEveningPoints[$userId] += $pointsForCross;
+        /*
+        |--------------------------------------------------------------------------
+        | Explicitly split activities
+        |--------------------------------------------------------------------------
+        */
+
+        if ($splitForSlot) {
+
+            foreach (
+                $splitForSlot
+                as $event
+            ) {
+
+                $eventId =
+                    (int) $event['id'];
+
+                $pointValue =
+                    (float) (
+                        $event['point_value']
+                        ?? 0
+                    );
+
+                $pointType =
+                    $event['point_type']
+                    ?? null;
+
+                if (
+                    $pointValue <= 0
+                    ||
+                    !in_array(
+                        $pointType,
+                        [
+                            'rehearsal',
+                            'performance'
+                        ],
+                        true
+                    )
+                ) {
+                    continue;
+                }
+
+                foreach (
+                    $members
+                    as $member
+                ) {
+
+                    $userId =
+                        (int) $member['id'];
+
+                    $item =
+                        $pointSplitAvailability[
+                            $eventId
+                        ][
+                            $userId
+                        ]
+                        ?? null;
+
+                    if (
+                        !is_array($item)
+                        ||
+                        ($item['status'] ?? '')
+                            !== 'available'
+                    ) {
+                        continue;
+                    }
+
+                    if (
+                        $pointType
+                        === 'rehearsal'
+                    ) {
+                        $runningRehearsalPoints[
+                            $userId
+                        ] += $pointValue;
+                    } else {
+                        $runningPerformancePoints[
+                            $userId
+                        ] += $pointValue;
+                    }
                 }
             }
-        } else {
-            $item = $pointsAvailability[$date]['evening'][$userId] ?? null;
-            if (is_array($item) && ($item['status'] ?? '') === 'available') {
-                $runningEveningPoints[$userId] += $pointsForCross;
+
+            continue;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Normal slot
+        |--------------------------------------------------------------------------
+        |
+        | One slot-level cross applies to the activities in that slot.
+        | If there are several imported activities and they need different
+        | availability, split the slot first.
+        |
+        */
+
+        $pointItems =
+            $pointActivityItems[
+                $date
+            ][
+                $period
+            ]
+            ?? [];
+
+        if (!$pointItems) {
+            continue;
+        }
+
+        foreach (
+            $members
+            as $member
+        ) {
+
+            $userId =
+                (int) $member['id'];
+
+            $availabilityItem =
+                $pointsAvailability[
+                    $date
+                ][
+                    $period
+                ][
+                    $userId
+                ]
+                ?? null;
+
+            if (
+                !is_array(
+                    $availabilityItem
+                )
+                ||
+                (
+                    $availabilityItem[
+                        'status'
+                    ]
+                    ?? ''
+                )
+                !== 'available'
+            ) {
+                continue;
+            }
+
+            foreach (
+                $pointItems
+                as $pointItem
+            ) {
+
+                $pointValue =
+                    (float) (
+                        $pointItem[
+                            'point_value'
+                        ]
+                        ?? 0
+                    );
+
+                $pointType =
+                    $pointItem[
+                        'point_type'
+                    ]
+                    ?? null;
+
+                if ($pointValue <= 0) {
+                    continue;
+                }
+
+                if (
+                    $pointType
+                    === 'rehearsal'
+                ) {
+                    $runningRehearsalPoints[
+                        $userId
+                    ] += $pointValue;
+
+                } elseif (
+                    $pointType
+                    === 'performance'
+                ) {
+                    $runningPerformancePoints[
+                        $userId
+                    ] += $pointValue;
+                }
             }
         }
     }
 
-    $calculationDate->modify('+1 day');
+    $calculationDate
+        ->modify('+1 day');
 }
+
+/*
+| Keep these aliases for existing view code.
+| "Morning points" now means rehearsal points.
+| "Evening points" now means performance points.
+*/
+
+$runningMorningPoints =
+    $runningRehearsalPoints;
+
+$runningEveningPoints =
+    $runningPerformancePoints;
+
+$weeklyEveningPoints =
+    $weeklyPerformancePoints;
 
 $csrf = csrf_token();
 ?>
@@ -122,6 +450,7 @@ $csrf = csrf_token();
     <link rel="stylesheet" href="assets/css/mobile.css">
     <link rel="stylesheet" href="assets/css/split-events.css">
     <link rel="stylesheet" href="assets/css/desktop-v3.css">
+    <link rel="stylesheet" href="assets/css/activity-points.css">
 </head>
 <body>
 <header class="topbar">
@@ -165,20 +494,20 @@ $csrf = csrf_token();
                     <div class="mobile-week-title">Week of <?= e((new DateTime($day['date']))->format('j M')) ?></div>
                     <div class="mobile-points-columns">
                         <div>
-                            <h3>Evening points</h3>
+                            <h3>Performance points</h3>
                             <div class="mobile-points-grid">
                                 <?php foreach ($members as $member): ?>
                                     <?php $userId = (int) $member['id']; $weekPoints = $weeklyEveningPoints[$day['date']][$userId] ?? $member['evening_starting_points'] ?? 0; ?>
-                                    <div class="mobile-point-item <?= $userId === current_user_id() ? 'current-user-mobile' : '' ?>"><span><?= e($member['name']) ?></span><strong><?= (int) $weekPoints ?></strong></div>
+                                    <div class="mobile-point-item <?= $userId === current_user_id() ? 'current-user-mobile' : '' ?>"><span><?= e($member['name']) ?></span><strong><?= e(format_points($weekPoints)) ?></strong></div>
                                 <?php endforeach; ?>
                             </div>
                         </div>
                         <div>
-                            <h3>Morning points</h3>
+                            <h3>Rehearsal points</h3>
                             <div class="mobile-points-grid">
                                 <?php foreach ($members as $member): ?>
                                     <?php $userId = (int) $member['id']; ?>
-                                    <div class="mobile-point-item <?= $userId === current_user_id() ? 'current-user-mobile' : '' ?>"><span><?= e($member['name']) ?></span><strong><?= (int) ($runningMorningPoints[$userId] ?? 0) ?></strong></div>
+                                    <div class="mobile-point-item <?= $userId === current_user_id() ? 'current-user-mobile' : '' ?>"><span><?= e($member['name']) ?></span><strong><?= e(format_points($weeklyRehearsalPoints[$day['date']][$userId] ?? $member['morning_starting_points'] ?? 0)) ?></strong></div>
                                 <?php endforeach; ?>
                             </div>
                         </div>
@@ -205,6 +534,49 @@ $csrf = csrf_token();
                                 <?php $eventId = $event['id'] !== null ? (int) $event['id'] : null; ?>
                                 <div class="mobile-event-block <?= $eventId ? 'is-split-event' : '' ?>">
                                     <div class="mobile-activity <?= (!$eventId && is_admin()) ? 'activity-editable' : '' ?> <?= $eventId ? 'split-activity-cell' : '' ?>" data-date="<?= e($day['date']) ?>" data-period="<?= e($period) ?>" data-split-event-id="<?= $eventId ?: '' ?>"><?= e($event['activity']) ?></div>
+
+                                    <?php if (is_admin()): ?>
+                                        <?php
+                                        $mobilePointItems =
+                                            $event['point_items']
+                                            ?? [];
+                                        ?>
+                                        <?php foreach ($mobilePointItems as $pointItem): ?>
+                                            <div
+                                                class="activity-point-editor mobile-activity-point-editor"
+                                                data-point-source="<?= e($pointItem['source_type']) ?>"
+                                                data-point-id="<?= (int) $pointItem['source_id'] ?>"
+                                                data-point-type="<?= e($pointItem['point_type'] ?? '') ?>"
+                                            >
+                                                <input
+                                                    type="number"
+                                                    class="activity-point-input"
+                                                    value="<?= e(format_points($pointItem['point_value'] ?? 0)) ?>"
+                                                    min="0"
+                                                    max="9999"
+                                                    step="0.25"
+                                                    inputmode="decimal"
+                                                    aria-label="Activity point value"
+                                                >
+
+                                                <div class="activity-point-type">
+                                                    <button
+                                                        type="button"
+                                                        class="activity-point-type-button <?= ($pointItem['point_type'] ?? '') === 'rehearsal' ? 'selected' : '' ?>"
+                                                        data-point-type="rehearsal"
+                                                        title="Rehearsal points"
+                                                    >R</button>
+
+                                                    <button
+                                                        type="button"
+                                                        class="activity-point-type-button <?= ($pointItem['point_type'] ?? '') === 'performance' ? 'selected' : '' ?>"
+                                                        data-point-type="performance"
+                                                        title="Performance points"
+                                                    >P</button>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
 
                                     <div class="mobile-members-grid">
                                         <?php foreach ($members as $member): ?>

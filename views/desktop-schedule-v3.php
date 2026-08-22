@@ -27,19 +27,6 @@ function desktopPaperActivityParts(string $activity): array
         ];
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Extract time from beginning
-    |--------------------------------------------------------------------------
-    |
-    | Supports:
-    |
-    | 11:00–14:00
-    | 11:00-14:00
-    | 19:00
-    |
-    */
-
     $time = '';
 
     if (
@@ -59,12 +46,6 @@ function desktopPaperActivityParts(string $activity): array
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Move final (...) part into details
-    |--------------------------------------------------------------------------
-    */
-
     $details = '';
 
     if (
@@ -80,7 +61,9 @@ function desktopPaperActivityParts(string $activity): array
             mb_substr(
                 $activity,
                 0,
-                mb_strlen($activity) - mb_strlen($match[0])
+                mb_strlen($activity)
+                -
+                mb_strlen($match[0])
             )
         );
     }
@@ -90,6 +73,52 @@ function desktopPaperActivityParts(string $activity): array
         'title' => $activity,
         'details' => $details,
     ];
+}
+
+function desktopPaperPointEditor(array $pointItem): void
+{
+    if (!is_admin()) {
+        return;
+    }
+
+    $pointType =
+        $pointItem['point_type']
+        ?? '';
+?>
+    <div
+        class="activity-point-editor"
+        data-point-source="<?= e($pointItem['source_type']) ?>"
+        data-point-id="<?= (int) $pointItem['source_id'] ?>"
+        data-point-type="<?= e($pointType) ?>"
+    >
+        <input
+            type="number"
+            class="activity-point-input"
+            value="<?= e(format_points($pointItem['point_value'] ?? 0)) ?>"
+            min="0"
+            max="9999"
+            step="0.25"
+            inputmode="decimal"
+            aria-label="Activity point value"
+        >
+
+        <div class="activity-point-type">
+            <button
+                type="button"
+                class="activity-point-type-button <?= $pointType === 'rehearsal' ? 'selected' : '' ?>"
+                data-point-type="rehearsal"
+                title="Rehearsal points"
+            >R</button>
+
+            <button
+                type="button"
+                class="activity-point-type-button <?= $pointType === 'performance' ? 'selected' : '' ?>"
+                data-point-type="performance"
+                title="Performance points"
+            >P</button>
+        </div>
+    </div>
+<?php
 }
 
 function desktopPaperAvailability(
@@ -170,7 +199,7 @@ function desktopPaperRenderRoster(
                     </span>
 
                     <strong class="desktop-paper-person-points">
-                        <?= (int) ($points[$userId] ?? 0) ?>
+                        <?= e(format_points($points[$userId] ?? 0)) ?>
                     </strong>
                 </div>
             <?php endforeach; ?>
@@ -188,7 +217,8 @@ function desktopPaperRenderRoster(
                 <div class="desktop-paper-roster-day <?= e(desktopPaperDayClass($day)) ?>">
                     <div
                         class="desktop-paper-event-grid"
-                        style="--event-count: <?= $eventCount ?>">
+                        style="--event-count: <?= $eventCount ?>"
+                    >
                         <?php foreach ($events as $event): ?>
                             <?php
                             $eventId = $event['id'] !== null ? (int) $event['id'] : null;
@@ -225,7 +255,8 @@ function desktopPaperRenderRoster(
                                                 data-user-id="<?= $userId ?>"
                                                 data-status="<?= e($status) ?>"
                                                 data-uncertain="<?= $uncertain ? '1' : '0' ?>"
-                                                <?= !$editable ? 'disabled' : '' ?>></button>
+                                                <?= !$editable ? 'disabled' : '' ?>
+                                            ></button>
                                         <?php else: ?>
                                             <button
                                                 type="button"
@@ -235,7 +266,8 @@ function desktopPaperRenderRoster(
                                                 data-period="<?= e($period) ?>"
                                                 data-status="<?= e($status) ?>"
                                                 data-uncertain="<?= $uncertain ? '1' : '0' ?>"
-                                                <?= !$editable ? 'disabled' : '' ?>></button>
+                                                <?= !$editable ? 'disabled' : '' ?>
+                                            ></button>
                                         <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
@@ -277,7 +309,8 @@ function desktopPaperRenderActivities(
                 <div class="desktop-paper-activity-day <?= e(desktopPaperDayClass($day)) ?>">
                     <div
                         class="desktop-paper-event-grid"
-                        style="--event-count: <?= $eventCount ?>">
+                        style="--event-count: <?= $eventCount ?>"
+                    >
                         <?php foreach ($events as $event): ?>
                             <?php
                             $eventId = $event['id'] !== null ? (int) $event['id'] : null;
@@ -292,53 +325,114 @@ function desktopPaperRenderActivities(
                                     <?= $activity === '' ? 'is-empty-event' : '' ?>"
                                 data-date="<?= e($day['date']) ?>"
                                 data-period="<?= e($period) ?>"
-                                data-split-event-id="<?= $eventId ?: '' ?>">
-
-
+                                data-split-event-id="<?= $eventId ?: '' ?>"
+                            >
                                 <?php
-                                $activityParts =
-                                    desktopPaperActivityParts(
-                                        $activity
-                                    );
+                                $pointItems =
+                                    $event['point_items']
+                                    ?? [];
+
+                                $displayItems =
+                                    count($pointItems) > 1
+                                    ? $pointItems
+                                    : [
+                                        [
+                                            'activity' => $activity,
+                                            'point_item' =>
+                                                $pointItems[0]
+                                                ?? null,
+                                        ],
+                                    ];
+
+                                if (count($pointItems) > 1) {
+                                    $displayItems =
+                                        array_map(
+                                            static fn(array $item): array => [
+                                                'activity' =>
+                                                    $item['activity']
+                                                    ?? '',
+                                                'point_item' =>
+                                                    $item,
+                                            ],
+                                            $pointItems
+                                        );
+                                }
                                 ?>
 
-                                <span class="desktop-paper-activity-text">
+                                <div class="desktop-paper-activity-items">
 
-                                    <?php if ($activity === ''): ?>
+                                    <?php foreach ($displayItems as $displayItem): ?>
 
-                                        <span class="desktop-paper-activity-empty">
-                                            —
-                                        </span>
+                                        <?php
+                                        $displayActivity =
+                                            trim(
+                                                (string) (
+                                                    $displayItem['activity']
+                                                    ?? ''
+                                                )
+                                            );
 
-                                    <?php else: ?>
+                                        $activityParts =
+                                            desktopPaperActivityParts(
+                                                $displayActivity
+                                            );
+                                        ?>
 
-                                        <?php if ($activityParts['time'] !== ''): ?>
+                                        <div class="desktop-paper-activity-item">
 
-                                            <strong class="desktop-paper-activity-time">
-                                                <?= e($activityParts['time']) ?>
-                                            </strong>
+                                            <span class="desktop-paper-activity-text">
 
-                                        <?php endif; ?>
+                                                <?php if ($displayActivity === ''): ?>
 
-                                        <?php if ($activityParts['title'] !== ''): ?>
+                                                    <span class="desktop-paper-activity-empty">
+                                                        —
+                                                    </span>
 
-                                            <span class="desktop-paper-activity-title">
-                                                <?= e($activityParts['title']) ?>
+                                                <?php else: ?>
+
+                                                    <?php if ($activityParts['time'] !== ''): ?>
+                                                        <strong class="desktop-paper-activity-time">
+                                                            <?= e($activityParts['time']) ?>
+                                                        </strong>
+                                                    <?php endif; ?>
+
+                                                    <?php if ($activityParts['title'] !== ''): ?>
+                                                        <span class="desktop-paper-activity-title">
+                                                            <?= e($activityParts['title']) ?>
+                                                        </span>
+                                                    <?php endif; ?>
+
+                                                    <?php if ($activityParts['details'] !== ''): ?>
+                                                        <span class="desktop-paper-activity-details">
+                                                            <?= e($activityParts['details']) ?>
+                                                        </span>
+                                                    <?php endif; ?>
+
+                                                <?php endif; ?>
+
                                             </span>
 
-                                        <?php endif; ?>
+                                            <?php
+                                            if (
+                                                !empty(
+                                                    $displayItem[
+                                                        'point_item'
+                                                    ]
+                                                )
+                                            ) {
+                                                desktopPaperPointEditor(
+                                                    $displayItem[
+                                                        'point_item'
+                                                    ]
+                                                );
+                                            }
+                                            ?>
 
-                                        <?php if ($activityParts['details'] !== ''): ?>
+                                        </div>
 
-                                            <span class="desktop-paper-activity-details">
-                                                <?= e($activityParts['details']) ?>
-                                            </span>
+                                    <?php endforeach; ?>
 
-                                        <?php endif; ?>
-
-                                    <?php endif; ?>
-
-                                </span>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -372,7 +466,13 @@ function desktopPaperRenderActivities(
             }
         }
 
-        $morningWeekPoints = $runningMorningPoints;
+        $morningWeekPoints =
+            $weeklyRehearsalPoints[$mondayDate]
+            ?? array_column(
+                $members,
+                'morning_starting_points',
+                'id'
+            );
         ?>
 
         <article class="desktop-paper-week">
