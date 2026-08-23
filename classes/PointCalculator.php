@@ -40,85 +40,132 @@ final class PointCalculator
                 return;
             }
 
-            if (!in_array($pointType, ['rehearsal', 'performance'], true)) {
+            if (
+                !in_array(
+                    $pointType,
+                    ['rehearsal', 'performance'],
+                    true
+                )
+            ) {
                 return;
             }
 
             foreach ($members as $member) {
                 $userId = (int) $member['id'];
-                $item = $eventAvailability[$userId] ?? null;
+
+                $item =
+                    $eventAvailability[$userId]
+                    ?? null;
 
                 if (
                     !is_array($item)
-                    || ($item['status'] ?? '') !== 'available'
+                    ||
+                    ($item['status'] ?? '')
+                    !== 'available'
+                ) {
+                    continue;
+                }
+
+                if (
+                    ($item['counts_for_points'] ?? true)
+                    === false
                 ) {
                     continue;
                 }
 
                 if ($pointType === 'rehearsal') {
-                    $runningRehearsal[$userId] += $pointValue;
+                    $runningRehearsal[$userId] +=
+                        $pointValue;
                 } else {
-                    $runningPerformance[$userId] += $pointValue;
+                    $runningPerformance[$userId] +=
+                        $pointValue;
                 }
             }
         };
 
-        $date = clone $seasonStartDate;
+        $date =
+            clone $seasonStartDate;
 
-        while ($date <= $endDate) {
-            $ymd = $date->format('Y-m-d');
-            $weekday = (int) $date->format('N');
+        while (
+            $date <= $endDate
+        ) {
+            $ymd =
+                $date->format('Y-m-d');
 
-            /*
-            | Weekly totals are displayed at the beginning of Monday,
-            | before Monday's activities are counted.
-            */
+            $weekday =
+                (int) $date->format('N');
+
             if ($weekday === 1) {
-                $weeklyRehearsal[$ymd] = $runningRehearsal;
-                $weeklyPerformance[$ymd] = $runningPerformance;
+                $weeklyRehearsal[$ymd] =
+                    $runningRehearsal;
+
+                $weeklyPerformance[$ymd] =
+                    $runningPerformance;
             }
 
-            foreach (['morning', 'evening'] as $period) {
-                /*
-                | Once a slot is split, split activities are the source of truth
-                | for both availability and points. Do not also count the slot.
-                */
-                $splitForSlot = $splitEvents[$ymd][$period] ?? [];
+            foreach (
+                ['morning', 'evening']
+                as $period
+            ) {
+                $splitForSlot =
+                    $splitEvents[$ymd][$period]
+                    ?? [];
 
-                if (!empty($splitForSlot)) {
-                    foreach ($splitForSlot as $event) {
-                        $eventId = (int) ($event['id'] ?? 0);
+                if (
+                    !empty($splitForSlot)
+                ) {
+                    foreach (
+                        $splitForSlot
+                        as $event
+                    ) {
+                        $eventId =
+                            (int) (
+                                $event['id']
+                                ?? 0
+                            );
 
                         if ($eventId <= 0) {
                             continue;
                         }
 
                         $addPoints(
-                            (float) ($event['point_value'] ?? 0),
-                            $event['point_type'] ?? null,
-                            $splitAvailability[$eventId] ?? []
+                            (float) (
+                                $event['point_value']
+                                ?? 0
+                            ),
+                            $event['point_type']
+                                ?? null,
+                            $splitAvailability[$eventId]
+                                ?? []
                         );
                     }
 
                     continue;
                 }
 
-                /*
-                | Unsplit activities share the slot-level availability.
-                | If two activities need different people, the slot must be split.
-                */
-                $items = $activityPointItems[$ymd][$period] ?? [];
+                $items =
+                    $activityPointItems[$ymd][$period]
+                    ?? [];
 
                 if (empty($items)) {
                     continue;
                 }
 
-                $slotAvailability = $availability[$ymd][$period] ?? [];
+                $slotAvailability =
+                    $availability[$ymd][$period]
+                    ?? [];
 
-                foreach ($items as $item) {
+                foreach (
+                    $items
+                    as $item
+                ) {
                     $addPoints(
-                        (float) ($item['point_value'] ?? 0),
-                        $item['point_type'] ?? null,
+                        (float) (
+                            $item['point_value']
+                            ?? 0
+                        ),
+                        $item['point_type']
+                            ?? null,
                         $slotAvailability
                     );
                 }
@@ -128,10 +175,17 @@ final class PointCalculator
         }
 
         return [
-            'weekly_rehearsal' => $weeklyRehearsal,
-            'weekly_performance' => $weeklyPerformance,
-            'running_rehearsal' => $runningRehearsal,
-            'running_performance' => $runningPerformance,
+            'weekly_rehearsal' =>
+                $weeklyRehearsal,
+
+            'weekly_performance' =>
+                $weeklyPerformance,
+
+            'running_rehearsal' =>
+                $runningRehearsal,
+
+            'running_performance' =>
+                $runningPerformance,
         ];
     }
 }

@@ -905,3 +905,7 @@ body.editing-mode .activity-editable {
 .activity-rich-editor em {
   font-style: italic;
 }
+
+.desktop-paper-point-number {
+  line-height: 1px !important;
+}

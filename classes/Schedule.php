@@ -57,7 +57,7 @@ class Schedule
     public function availabilityForMonth(DateTime $firstDay, DateTime $lastDay): array
     {
         $stmt = $this->pdo->prepare(
-            "SELECT user_id, schedule_date, period, status, uncertain
+            "SELECT user_id, schedule_date, period, status, uncertain,  counts_for_points
              FROM availability
              WHERE schedule_date BETWEEN ? AND ?"
         );
@@ -68,6 +68,7 @@ class Schedule
             $availability[$row['schedule_date']][$row['period']][(int) $row['user_id']] = [
                 'status' => $row['status'],
                 'uncertain' => (bool) $row['uncertain'],
+                'counts_for_points' => (bool) $row['counts_for_points'],
             ];
         }
         return $availability;
@@ -428,7 +429,7 @@ class Schedule
     public function splitAvailabilityForMonth(DateTime $firstDay, DateTime $lastDay): array
     {
         $stmt = $this->pdo->prepare(
-            "SELECT sa.split_event_id, sa.user_id, sa.status, sa.uncertain
+            "SELECT sa.split_event_id, sa.user_id, sa.status, sa.uncertain, sa.counts_for_points
              FROM split_availability sa
              INNER JOIN schedule_split_events se ON se.id = sa.split_event_id
              WHERE se.schedule_date BETWEEN ? AND ?"
@@ -440,6 +441,7 @@ class Schedule
             $result[(int) $row['split_event_id']][(int) $row['user_id']] = [
                 'status' => $row['status'],
                 'uncertain' => (bool) $row['uncertain'],
+                'counts_for_points' => (bool) $row['counts_for_points'],
             ];
         }
         return $result;
@@ -691,6 +693,58 @@ class Schedule
 
             throw $e;
         }
+    }
+    public function setCountsForPoints(
+        int $userId,
+        string $date,
+        string $period,
+        bool $countsForPoints,
+        int $updatedBy
+    ): void {
+        $stmt = $this->pdo->prepare(
+            "UPDATE availability
+         SET
+            counts_for_points = ?,
+            updated_by = ?,
+            updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = ?
+           AND schedule_date = ?
+           AND period = ?
+           AND status = 'available'"
+        );
+
+        $stmt->execute([
+            $countsForPoints ? 1 : 0,
+            $updatedBy,
+            $userId,
+            $date,
+            $period
+        ]);
+    }
+
+    public function setSplitCountsForPoints(
+        int $splitEventId,
+        int $userId,
+        bool $countsForPoints,
+        int $updatedBy
+    ): void {
+        $stmt = $this->pdo->prepare(
+            "UPDATE split_availability
+         SET
+            counts_for_points = ?,
+            updated_by = ?,
+            updated_at = CURRENT_TIMESTAMP
+         WHERE split_event_id = ?
+           AND user_id = ?
+           AND status = 'available'"
+        );
+
+        $stmt->execute([
+            $countsForPoints ? 1 : 0,
+            $updatedBy,
+            $splitEventId,
+            $userId
+        ]);
     }
 
     public function saveSplitAvailability(int $eventId, int $userId, string $status, int $updatedBy): void
