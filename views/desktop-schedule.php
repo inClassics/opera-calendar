@@ -680,36 +680,7 @@ function desktopPaperRenderActivities(
 
         <article class="desktop-paper-week">
 
-            <header class="desktop-paper-week-header">
 
-                <div class="desktop-paper-week-title">
-                    Week <?= e($weekNumber) ?>
-                </div>
-
-                <div class="desktop-paper-day-headings">
-
-                    <?php foreach ($week as $day): ?>
-
-                        <div
-                            class="desktop-paper-day-heading <?= e(desktopPaperDayClass($day)) ?>">
-                            <strong>
-                                <?= e(strtoupper($day['weekday_short'])) ?>
-                            </strong>
-
-                            <span>
-                                <?= (
-                                    new DateTime(
-                                        $day['date']
-                                    )
-                                )->format('j/n') ?>
-                            </span>
-                        </div>
-
-                    <?php endforeach; ?>
-
-                </div>
-
-            </header>
 
             <?php
             desktopPaperRenderRoster(

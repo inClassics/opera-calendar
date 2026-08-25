@@ -21,7 +21,7 @@
   --left-width: clamp(126px, 10.5vw, 175px);
   --person-row-height: 25px;
   --activity-height: clamp(92px, 12.5vh, 125px);
-
+  --monday-width: 55px;
   width: 100%;
   margin: 0 0 38px;
   background: #fff;
@@ -61,7 +61,21 @@
 .desktop-paper-day-headings,
 .desktop-paper-date-days {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+
+  /*
+
+  |--------------------------------------------------------------------------
+
+  | Monday + Tuesday-Sunday
+
+  |--------------------------------------------------------------------------
+
+  */
+
+  grid-template-columns:
+    var(--monday-width)
+    repeat(6, minmax(0, 1fr));
+
   min-width: 0;
 }
 
@@ -76,6 +90,113 @@
   padding: 4px;
   border-right: 1px solid #d7dce3;
   font-size: 10px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Compact Monday column
+|--------------------------------------------------------------------------
+|
+| Monday is always a day off.
+| The column remains visible so the weekly structure is clear, but it does
+| not consume the same amount of horizontal space as working days.
+|
+*/
+
+.desktop-paper-day-heading:first-child {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+/*
+| The normal "MON 24/8" heading cannot fit inside 15px.
+| The central date row below still shows the actual date.
+*/
+
+.desktop-paper-day-heading:first-child strong,
+.desktop-paper-day-heading:first-child span {
+  display: none;
+}
+
+/*
+| Show a small M so it is still obvious that this column is Monday.
+*/
+
+.desktop-paper-day-heading:first-child::after {
+  content: "M";
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+
+  color: #7a838c;
+
+  font-size: 8px;
+  font-weight: 800;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Monday central date cell
+|--------------------------------------------------------------------------
+*/
+
+.desktop-paper-date-cell:first-child {
+  overflow: hidden;
+}
+
+.desktop-paper-date-cell:first-child strong {
+  font-size: 9px;
+}
+/* 
+.desktop-paper-date-cell:first-child span {
+  display: none;
+} */
+
+/*
+|--------------------------------------------------------------------------
+| Monday activities
+|--------------------------------------------------------------------------
+|
+| There should normally be no activity, so prevent placeholder/content from
+| forcing the narrow column wider.
+|
+*/
+
+.desktop-paper-activity-day:first-child {
+  overflow: hidden;
+}
+
+.desktop-paper-activity-day:first-child .desktop-paper-activity {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.desktop-paper-activity-day:first-child .desktop-paper-activity-text {
+  /* display: none; */
+
+  font-size: 10px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: start;
+  align-items: start;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Monday availability
+|--------------------------------------------------------------------------
+*/
+
+.desktop-paper-roster-day:first-child {
+  overflow: hidden;
+}
+
+.desktop-paper-roster-day:first-child .desktop-paper-mark {
+  font-size: 11px !important;
 }
 
 .desktop-paper-day-heading:last-child {
@@ -163,7 +284,11 @@
 
 .desktop-paper-roster-days {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+
+  grid-template-columns:
+    var(--monday-width)
+    repeat(6, minmax(0, 1fr));
+
   min-width: 0;
 }
 
@@ -291,7 +416,11 @@
 
 .desktop-paper-activities-days {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+
+  grid-template-columns:
+    var(--monday-width)
+    repeat(6, minmax(0, 1fr));
+
   min-width: 0;
 }
 
