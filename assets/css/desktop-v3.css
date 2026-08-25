@@ -327,9 +327,9 @@
 }
 
 .desktop-paper-activity-text {
-  writing-mode: vertical-rl;
+  /* writing-mode: vertical-rl; */
   text-orientation: mixed;
-  transform: rotate(180deg);
+  /* transform: rotate(180deg); */
   max-height: calc(var(--activity-height) - 10px);
   overflow: hidden;
   white-space: normal;
@@ -469,10 +469,10 @@ body.editing-mode .desktop-paper-activity.split-activity-cell:hover {
 }
 
 .desktop-paper-activity-text {
-  writing-mode: vertical-rl;
+  /* writing-mode: vertical-rl; */
   text-orientation: mixed;
 
-  transform: rotate(180deg);
+  /* transform: rotate(180deg); */
 
   max-height: calc(var(--activity-height) - 10px);
 
