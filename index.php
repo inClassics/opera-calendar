@@ -37,27 +37,27 @@ $pointCounting =
 
 $members =
     $userRepository
-        ->activeUsers();
+    ->activeUsers();
 
 $context =
     $scheduleRepository
-        ->monthContext(
-            (int) (
-                $_GET['year']
-                ?? date('Y')
-            ),
-            (int) (
-                $_GET['month']
-                ?? date('n')
-            )
-        );
+    ->monthContext(
+        (int) (
+            $_GET['year']
+            ?? date('Y')
+        ),
+        (int) (
+            $_GET['month']
+            ?? date('n')
+        )
+    );
 
 $days =
     $scheduleRepository
-        ->daysForMonth(
-            $context['firstDay'],
-            $context['lastDay']
-        );
+    ->daysForMonth(
+        $context['firstDay'],
+        $context['lastDay']
+    );
 
 /*
 |--------------------------------------------------------------------------
@@ -67,47 +67,47 @@ $days =
 
 $availability =
     $scheduleRepository
-        ->availabilityForMonth(
-            $context['firstDay'],
-            $context['lastDay']
-        );
+    ->availabilityForMonth(
+        $context['firstDay'],
+        $context['lastDay']
+    );
 
 $availability =
     $pointCounting
-        ->applyNormalFlags(
-            $availability,
-            $context['firstDay'],
-            $context['lastDay']
-        );
+    ->applyNormalFlags(
+        $availability,
+        $context['firstDay'],
+        $context['lastDay']
+    );
 
 $splitEvents =
     $scheduleRepository
-        ->splitEventsForMonth(
-            $context['firstDay'],
-            $context['lastDay']
-        );
+    ->splitEventsForMonth(
+        $context['firstDay'],
+        $context['lastDay']
+    );
 
 $splitAvailability =
     $scheduleRepository
-        ->splitAvailabilityForMonth(
-            $context['firstDay'],
-            $context['lastDay']
-        );
+    ->splitAvailabilityForMonth(
+        $context['firstDay'],
+        $context['lastDay']
+    );
 
 $splitAvailability =
     $pointCounting
-        ->applySplitFlags(
-            $splitAvailability,
-            $context['firstDay'],
-            $context['lastDay']
-        );
+    ->applySplitFlags(
+        $splitAvailability,
+        $context['firstDay'],
+        $context['lastDay']
+    );
 
 $activityPointItems =
     $scheduleRepository
-        ->activityPointItemsForMonth(
-            $context['firstDay'],
-            $context['lastDay']
-        );
+    ->activityPointItemsForMonth(
+        $context['firstDay'],
+        $context['lastDay']
+    );
 
 /*
 |--------------------------------------------------------------------------
@@ -139,9 +139,9 @@ $mobileDays =
         array_filter(
             $days,
             static fn(array $day): bool =>
-                new DateTime(
-                    $day['date']
-                )
+            new DateTime(
+                $day['date']
+            )
                 >=
                 $currentWeekStart
         )
@@ -182,69 +182,65 @@ if (
 ) {
     $pointAvailability =
         $scheduleRepository
-            ->availabilityForMonth(
-                $seasonStartDate,
-                $context['lastDay']
-            );
+        ->availabilityForMonth(
+            $seasonStartDate,
+            $context['lastDay']
+        );
 
     $pointAvailability =
         $pointCounting
-            ->applyNormalFlags(
-                $pointAvailability,
-                $seasonStartDate,
-                $context['lastDay']
-            );
+        ->applyNormalFlags(
+            $pointAvailability,
+            $seasonStartDate,
+            $context['lastDay']
+        );
 
     $pointSplitEvents =
         $scheduleRepository
-            ->splitEventsForMonth(
-                $seasonStartDate,
-                $context['lastDay']
-            );
+        ->splitEventsForMonth(
+            $seasonStartDate,
+            $context['lastDay']
+        );
 
     $pointSplitAvailability =
         $scheduleRepository
-            ->splitAvailabilityForMonth(
-                $seasonStartDate,
-                $context['lastDay']
-            );
+        ->splitAvailabilityForMonth(
+            $seasonStartDate,
+            $context['lastDay']
+        );
 
     $pointSplitAvailability =
         $pointCounting
-            ->applySplitFlags(
-                $pointSplitAvailability,
-                $seasonStartDate,
-                $context['lastDay']
-            );
+        ->applySplitFlags(
+            $pointSplitAvailability,
+            $seasonStartDate,
+            $context['lastDay']
+        );
 
     $pointActivityItems =
         $scheduleRepository
-            ->activityPointItemsForMonth(
-                $seasonStartDate,
-                $context['lastDay']
-            );
+        ->activityPointItemsForMonth(
+            $seasonStartDate,
+            $context['lastDay']
+        );
 
     $pointTotals =
         $pointCalculator
-            ->calculate(
-                $members,
-                $seasonStartDate,
-                $context['lastDay'],
-                $pointAvailability,
-                $pointSplitEvents,
-                $pointSplitAvailability,
-                $pointActivityItems
-            );
+        ->calculate(
+            $members,
+            $seasonStartDate,
+            $context['lastDay'],
+            $pointAvailability,
+            $pointSplitEvents,
+            $pointSplitAvailability,
+            $pointActivityItems
+        );
 
     $weeklyRehearsalPoints =
-        $pointTotals[
-            'weekly_rehearsal'
-        ];
+        $pointTotals['weekly_rehearsal'];
 
     $weeklyPerformancePoints =
-        $pointTotals[
-            'weekly_performance'
-        ];
+        $pointTotals['weekly_performance'];
 }
 
 /*
@@ -265,8 +261,7 @@ $csrf =
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1"
-    >
+        content="width=device-width, initial-scale=1">
 
     <title>
         <?= e($context['monthTitle']) ?>
@@ -276,33 +271,27 @@ $csrf =
 
     <link
         rel="stylesheet"
-        href="assets/css/app.css"
-    >
+        href="assets/css/app.css">
 
     <link
         rel="stylesheet"
-        href="assets/css/mobile.css"
-    >
+        href="assets/css/mobile.css">
 
     <link
         rel="stylesheet"
-        href="assets/css/split-events.css"
-    >
+        href="assets/css/split-events.css">
 
     <link
         rel="stylesheet"
-        href="assets/css/desktop.css"
-    >
+        href="assets/css/desktop.css">
 
     <link
         rel="stylesheet"
-        href="assets/css/activity-points.css"
-    >
+        href="assets/css/activity-points.css">
 
     <link
         rel="stylesheet"
-        href="assets/css/point-counting.css"
-    >
+        href="assets/css/point-counting.css">
 </head>
 
 <body>
@@ -315,14 +304,12 @@ $csrf =
 
         <nav
             class="month-navigation"
-            aria-label="Month navigation"
-        >
+            aria-label="Month navigation">
 
             <a
                 class="month-arrow"
                 href="?year=<?= $context['previousMonth']->format('Y') ?>&month=<?= $context['previousMonth']->format('n') ?>"
-                aria-label="Previous month"
-            >
+                aria-label="Previous month">
                 ‹
             </a>
 
@@ -333,8 +320,7 @@ $csrf =
             <a
                 class="month-arrow"
                 href="?year=<?= $context['nextMonth']->format('Y') ?>&month=<?= $context['nextMonth']->format('n') ?>"
-                aria-label="Next month"
-            >
+                aria-label="Next month">
                 ›
             </a>
 
@@ -350,8 +336,7 @@ $csrf =
                 type="button"
                 class="button edit-mode-toggle"
                 id="edit-mode-toggle"
-                aria-pressed="false"
-            >
+                aria-pressed="false">
                 Edit schedule
             </button>
 
@@ -426,17 +411,17 @@ $csrf =
             <?= json_encode(
                 [
                     'csrfToken' =>
-                        $csrf,
+                    $csrf,
 
                     'currentUserId' =>
-                        current_user_id(),
+                    current_user_id(),
 
                     'isAdmin' =>
-                        is_admin(),
+                    is_admin(),
                 ],
                 JSON_UNESCAPED_SLASHES
-                |
-                JSON_UNESCAPED_UNICODE
+                    |
+                    JSON_UNESCAPED_UNICODE
             ) ?>;
     </script>
 
@@ -447,4 +432,5 @@ $csrf =
     <script src="assets/js/activity-points.js"></script>
 
 </body>
+
 </html>

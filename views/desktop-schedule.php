@@ -22,6 +22,7 @@ function desktopPaperPointEditor(
         data-point-source="<?= e($pointItem['source_type']) ?>"
         data-point-id="<?= (int) $pointItem['source_id'] ?>"
         data-point-type="<?= e($pointType) ?>">
+
         <input
             type="number"
             class="activity-point-input"
@@ -113,6 +114,7 @@ function desktopPaperPointBadge(
                             : ' points'
                         )
                 ) ?>">
+
         <span class="desktop-paper-point-letter">
             <?= e($letter) ?>
         </span>
@@ -124,6 +126,7 @@ function desktopPaperPointBadge(
         <strong class="desktop-paper-point-number">
             <?= e(format_points($pointValue)) ?>
         </strong>
+
     </div>
 <?php
 }
@@ -175,12 +178,107 @@ function desktopPaperWeekNumber(
         new DateTime(
             $week[0]['date']
         )
-    )
-        ->format('W');
+    )->format('W');
+}
+
+/*
+|--------------------------------------------------------------------------
+| Does this date contain any real activity?
+|--------------------------------------------------------------------------
+|
+| Monday is normally a day off.
+|
+| If either the morning or evening contains an activity, Monday changes
+| from green to bright orange.
+|
+*/
+
+function desktopPaperDayHasActivity(
+    array $day,
+    array $splitEvents = [],
+    array $activityPointItems = []
+): bool {
+    $date =
+        $day['date']
+        ?? '';
+
+    /*
+    |--------------------------------------------------------------------------
+    | Normal/manual/imported activity
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        trim(
+            (string) (
+                $day['morning']
+                ?? ''
+            )
+        )
+        !== ''
+    ) {
+        return true;
+    }
+
+    if (
+        trim(
+            (string) (
+                $day['evening']
+                ?? ''
+            )
+        )
+        !== ''
+    ) {
+        return true;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Split events
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        !empty($splitEvents[$date]['morning']
+            ?? [])
+    ) {
+        return true;
+    }
+
+    if (
+        !empty($splitEvents[$date]['evening']
+            ?? [])
+    ) {
+        return true;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Point-linked calendar activity fallback
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        !empty($activityPointItems[$date]['morning']
+            ?? [])
+    ) {
+        return true;
+    }
+
+    if (
+        !empty($activityPointItems[$date]['evening']
+            ?? [])
+    ) {
+        return true;
+    }
+
+    return false;
 }
 
 function desktopPaperDayClass(
-    array $day
+    array $day,
+    array $splitEvents = [],
+    array $activityPointItems = []
 ): string {
     $classes =
         [];
@@ -197,6 +295,34 @@ function desktopPaperDayClass(
     ) {
         $classes[] =
             'is-weekend';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Monday
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        ($day['weekday'] ?? '')
+        === 'Monday'
+    ) {
+        $classes[] =
+            'is-monday';
+
+        if (
+            desktopPaperDayHasActivity(
+                $day,
+                $splitEvents,
+                $activityPointItems
+            )
+        ) {
+            $classes[] =
+                'monday-has-event';
+        } else {
+            $classes[] =
+                'monday-day-off';
+        }
     }
 
     if (
@@ -225,21 +351,23 @@ function desktopPaperRenderRoster(
     array $activityPointItems,
     array $points
 ): void {
-
-
 ?>
     <div class="desktop-paper-roster">
 
         <div class="desktop-paper-roster-left">
 
             <div class="desktop-paper-roster-labels">
+
                 <span>
                     Name
                 </span>
 
                 <span>
-                    <?= $period == 'morning' ? "Rehearsal " : "Concert " ?>Pts
+                    <?= $period === 'morning'
+                        ? 'Rehearsal '
+                        : 'Concert ' ?>Pts
                 </span>
+
             </div>
 
             <?php foreach ($members as $member): ?>
@@ -294,10 +422,17 @@ function desktopPaperRenderRoster(
                         1,
                         count($events)
                     );
+
+                $dayClass =
+                    desktopPaperDayClass(
+                        $day,
+                        $splitEvents,
+                        $activityPointItems
+                    );
                 ?>
 
                 <div
-                    class="desktop-paper-roster-day <?= e(desktopPaperDayClass($day)) ?>">
+                    class="desktop-paper-roster-day <?= e($dayClass) ?>">
 
                     <div
                         class="desktop-paper-event-grid"
@@ -449,10 +584,17 @@ function desktopPaperRenderActivities(
                         1,
                         count($events)
                     );
+
+                $dayClass =
+                    desktopPaperDayClass(
+                        $day,
+                        $splitEvents,
+                        $activityPointItems
+                    );
                 ?>
 
                 <div
-                    class="desktop-paper-activity-day <?= e(desktopPaperDayClass($day)) ?>">
+                    class="desktop-paper-activity-day <?= e($dayClass) ?>">
 
                     <div
                         class="desktop-paper-event-grid"
@@ -680,8 +822,6 @@ function desktopPaperRenderActivities(
 
         <article class="desktop-paper-week">
 
-
-
             <?php
             desktopPaperRenderRoster(
                 'morning',
@@ -713,8 +853,18 @@ function desktopPaperRenderActivities(
 
                     <?php foreach ($week as $day): ?>
 
+                        <?php
+                        $dayClass =
+                            desktopPaperDayClass(
+                                $day,
+                                $splitEvents,
+                                $activityPointItems
+                            );
+                        ?>
+
                         <div
-                            class="desktop-paper-date-cell <?= e(desktopPaperDayClass($day)) ?>">
+                            class="desktop-paper-date-cell <?= e($dayClass) ?>">
+
                             <strong>
                                 <?= (int) $day['day'] ?>
                             </strong>
@@ -722,6 +872,7 @@ function desktopPaperRenderActivities(
                             <span>
                                 <?= e(strtoupper($day['weekday_short'])) ?>
                             </span>
+
                         </div>
 
                     <?php endforeach; ?>
