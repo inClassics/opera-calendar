@@ -1,1 +1,6 @@
-config
+/config/
+.DS_Store
+**/.DS_Store
+*.log
+*.md
+/.vscode
