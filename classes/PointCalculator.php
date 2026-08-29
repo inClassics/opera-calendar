@@ -14,74 +14,181 @@ final class PointCalculator
         $runningRehearsal = [];
         $runningPerformance = [];
 
-        foreach ($members as $member) {
-            $userId = (int) $member['id'];
+        foreach (
+            $members
+            as $member
+        ) {
+            $userId =
+                (int) $member['id'];
 
             $runningRehearsal[$userId] =
-                (float) ($member['morning_starting_points'] ?? 0);
+                (float) (
+                    $member['morning_starting_points']
+                    ?? 0
+                );
 
             $runningPerformance[$userId] =
-                (float) ($member['evening_starting_points'] ?? 0);
+                (float) (
+                    $member['evening_starting_points']
+                    ?? 0
+                );
         }
 
         $weeklyRehearsal = [];
         $weeklyPerformance = [];
 
-        $addPoints = static function (
-            float $pointValue,
-            ?string $pointType,
-            array $eventAvailability
-        ) use (
-            $members,
-            &$runningRehearsal,
-            &$runningPerformance
-        ): void {
-            if ($pointValue <= 0) {
-                return;
-            }
+        /*
+        |--------------------------------------------------------------------------
+        | Add points for one event
+        |--------------------------------------------------------------------------
+        |
+        | Each player's own multiplier is applied to the points earned from
+        | the event.
+        |
+        | Example:
+        |
+        | event = 3 points
+        | multiplier 1 = +3
+        | multiplier 2 = +6
+        |
+        | Starting points are NOT multiplied.
+        |
+        */
 
-            if (
-                !in_array(
-                    $pointType,
-                    ['rehearsal', 'performance'],
-                    true
-                )
-            ) {
-                return;
-            }
-
-            foreach ($members as $member) {
-                $userId = (int) $member['id'];
-
-                $item =
-                    $eventAvailability[$userId]
-                    ?? null;
+        $addPoints =
+            static function (
+                float $pointValue,
+                ?string $pointType,
+                array $eventAvailability
+            ) use (
+                $members,
+                &$runningRehearsal,
+                &$runningPerformance
+            ): void {
 
                 if (
-                    !is_array($item)
-                    ||
-                    ($item['status'] ?? '')
-                    !== 'available'
+                    $pointValue <= 0
                 ) {
-                    continue;
+                    return;
                 }
 
                 if (
-                    ($item['counts_for_points'] ?? true)
-                    === false
+                    !in_array(
+                        $pointType,
+                        [
+                            'rehearsal',
+                            'performance'
+                        ],
+                        true
+                    )
                 ) {
-                    continue;
+                    return;
                 }
 
-                if ($pointType === 'rehearsal') {
-                    $runningRehearsal[$userId] +=
-                        $pointValue;
-                } else {
-                    $runningPerformance[$userId] +=
-                        $pointValue;
+                foreach (
+                    $members
+                    as $member
+                ) {
+                    $userId =
+                        (int) $member['id'];
+
+                    $item =
+                        $eventAvailability[$userId]
+                        ?? null;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Player must be available
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        !is_array(
+                            $item
+                        )
+                        ||
+                        (
+                            $item['status']
+                            ?? ''
+                        )
+                        !== 'available'
+                    ) {
+                        continue;
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Availability can explicitly be excluded from points
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        (
+                            $item['counts_for_points']
+                            ?? true
+                        )
+                        === false
+                    ) {
+                        continue;
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | User multiplier
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $multiplier =
+                        (float) (
+                            $member['multiplier']
+                            ?? 1
+                        );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Defensive fallback
+                    |--------------------------------------------------------------------------
+                    |
+                    | A missing, zero or invalid multiplier should not
+                    | accidentally remove someone's points.
+                    |
+                    */
+
+                    if (
+                        $multiplier <= 0
+                    ) {
+                        $multiplier = 1;
+                    }
+
+                    $earnedPoints =
+                        $pointValue
+                        *
+                        $multiplier;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Add to rehearsal/performance balance
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        $pointType
+                        === 'rehearsal'
+                    ) {
+                        $runningRehearsal[$userId] +=
+                            $earnedPoints;
+                    } else {
+                        $runningPerformance[$userId] +=
+                            $earnedPoints;
+                    }
                 }
-            }
-        };
+            };
+
+        /*
+        |--------------------------------------------------------------------------
+        | Walk through season
+        |--------------------------------------------------------------------------
+        */
 
         $date =
             clone $seasonStartDate;
@@ -90,12 +197,24 @@ final class PointCalculator
             $date <= $endDate
         ) {
             $ymd =
-                $date->format('Y-m-d');
+                $date->format(
+                    'Y-m-d'
+                );
 
             $weekday =
-                (int) $date->format('N');
+                (int) $date->format(
+                    'N'
+                );
 
-            if ($weekday === 1) {
+            /*
+            |--------------------------------------------------------------------------
+            | Monday snapshot
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $weekday === 1
+            ) {
                 $weeklyRehearsal[$ymd] =
                     $runningRehearsal;
 
@@ -104,9 +223,18 @@ final class PointCalculator
             }
 
             foreach (
-                ['morning', 'evening']
+                [
+                    'morning',
+                    'evening'
+                ]
                 as $period
             ) {
+                /*
+                |--------------------------------------------------------------------------
+                | Split events
+                |--------------------------------------------------------------------------
+                */
+
                 $splitForSlot =
                     $splitEvents[$ymd][$period]
                     ?? [];
@@ -124,7 +252,9 @@ final class PointCalculator
                                 ?? 0
                             );
 
-                        if ($eventId <= 0) {
+                        if (
+                            $eventId <= 0
+                        ) {
                             continue;
                         }
 
@@ -143,11 +273,19 @@ final class PointCalculator
                     continue;
                 }
 
+                /*
+                |--------------------------------------------------------------------------
+                | Normal unsplit activity
+                |--------------------------------------------------------------------------
+                */
+
                 $items =
                     $activityPointItems[$ymd][$period]
                     ?? [];
 
-                if (empty($items)) {
+                if (
+                    empty($items)
+                ) {
                     continue;
                 }
 
@@ -171,21 +309,23 @@ final class PointCalculator
                 }
             }
 
-            $date->modify('+1 day');
+            $date->modify(
+                '+1 day'
+            );
         }
 
         return [
             'weekly_rehearsal' =>
-                $weeklyRehearsal,
+            $weeklyRehearsal,
 
             'weekly_performance' =>
-                $weeklyPerformance,
+            $weeklyPerformance,
 
             'running_rehearsal' =>
-                $runningRehearsal,
+            $runningRehearsal,
 
             'running_performance' =>
-                $runningPerformance,
+            $runningPerformance,
         ];
     }
 }

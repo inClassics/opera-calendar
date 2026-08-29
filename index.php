@@ -352,6 +352,10 @@ $csrf =
 
             <?php endif; ?>
 
+            <a href="change-password.php">
+                Change password
+            </a>
+
             <a href="logout.php">
                 Logout
             </a>
