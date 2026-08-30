@@ -8,6 +8,7 @@ require_once __DIR__ . '/classes/User.php';
 require_once __DIR__ . '/classes/Schedule.php';
 require_once __DIR__ . '/classes/PointCalculator.php';
 require_once __DIR__ . '/classes/PointCounting.php';
+require_once __DIR__ . '/classes/ScheduleChangeTracker.php';
 
 require_login();
 
@@ -26,6 +27,11 @@ $pointCalculator =
 
 $pointCounting =
     new PointCounting(
+        $pdo
+    );
+
+$changeTracker =
+    new ScheduleChangeTracker(
         $pdo
     );
 
@@ -58,6 +64,47 @@ $days =
         $context['firstDay'],
         $context['lastDay']
     );
+
+/*
+|--------------------------------------------------------------------------
+| Changes since this user last checked this month
+|--------------------------------------------------------------------------
+*/
+
+$scheduleChanges = [
+    'month' =>
+    $context['firstDay']
+        ->format('Y-m'),
+
+    'last_seen_activity_id' =>
+    0,
+
+    'current_activity_id' =>
+    0,
+
+    'count' =>
+    0,
+
+    'changes' =>
+    [],
+];
+
+try {
+    $scheduleChanges =
+        $changeTracker
+        ->changesForMonth(
+            current_user_id(),
+            is_admin(),
+            $context['firstDay'],
+            $context['lastDay']
+        );
+} catch (
+    Throwable $e
+) {
+    /*
+    | Keep the schedule usable if the migration has not yet been run.
+    */
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -292,6 +339,10 @@ $csrf =
     <link
         rel="stylesheet"
         href="assets/css/point-counting.css">
+
+    <link
+        rel="stylesheet"
+        href="assets/css/schedule-changes.css">
 </head>
 
 <body>
@@ -351,9 +402,7 @@ $csrf =
                 </a>
 
                 <a href="admin/activity-log.php">
-
                     Changes
-
                 </a>
 
             <?php endif; ?>
@@ -371,6 +420,50 @@ $csrf =
     </header>
 
     <main class="page">
+
+        <?php if (
+            ($scheduleChanges['count'] ?? 0)
+            > 0
+        ): ?>
+
+            <div
+                class="schedule-change-notice"
+                id="schedule-change-notice">
+
+                <div class="schedule-change-notice-copy">
+
+                    <span
+                        class="schedule-change-notice-dot"
+                        aria-hidden="true">
+                    </span>
+
+                    <div>
+                        <strong>
+                            <?= (int) $scheduleChanges['count'] ?>
+                            <?= (int) $scheduleChanges['count'] === 1
+                                ? 'change'
+                                : 'changes' ?>
+                            since you last checked this month
+                        </strong>
+
+                        <div class="muted">
+                            Highlighted areas were changed by another member,
+                            an administrator, or the calendar system.
+                        </div>
+                    </div>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="button"
+                    id="mark-schedule-changes-seen">
+                    Mark as seen
+                </button>
+
+            </div>
+
+        <?php endif; ?>
 
         <div class="legend desktop-legend">
 
@@ -428,6 +521,9 @@ $csrf =
 
                     'isAdmin' =>
                     is_admin(),
+
+                    'scheduleChanges' =>
+                    $scheduleChanges,
                 ],
                 JSON_UNESCAPED_SLASHES
                     |
@@ -440,6 +536,7 @@ $csrf =
     <script src="assets/js/availability.js"></script>
     <script src="assets/js/split-events.js"></script>
     <script src="assets/js/activity-points.js"></script>
+    <script src="assets/js/schedule-changes.js"></script>
 
 </body>
 

@@ -14,14 +14,27 @@ if ($pointType === '') {
 }
 
 $tableMap = [
-    'calendar' => 'calendar_events',
-    'split' => 'schedule_split_events',
-    'slot' => 'schedule_slots',
+    'calendar' => [
+        'table' => 'calendar_events',
+        'entity_type' => 'calendar_event',
+    ],
+    'split' => [
+        'table' => 'schedule_split_events',
+        'entity_type' => 'split_event',
+    ],
+    'slot' => [
+        'table' => 'schedule_slots',
+        'entity_type' => 'schedule_slot',
+    ],
 ];
 
 if (
     $sourceId <= 0
-    || !array_key_exists($sourceType, $tableMap)
+    ||
+    !array_key_exists(
+        $sourceType,
+        $tableMap
+    )
 ) {
     json_response([
         'success' => false,
@@ -31,7 +44,8 @@ if (
 
 if (
     $pointValueRaw === ''
-    || filter_var(
+    ||
+    filter_var(
         $pointValueRaw,
         FILTER_VALIDATE_INT
     ) === false
@@ -53,7 +67,8 @@ if ($pointValue < 0 || $pointValue > 9999) {
 
 if (
     $pointType !== null
-    && !in_array(
+    &&
+    !in_array(
         $pointType,
         ['rehearsal', 'performance'],
         true
@@ -65,13 +80,46 @@ if (
     ], 400);
 }
 
-$table = $tableMap[$sourceType];
+$table = $tableMap[$sourceType]['table'];
+$entityType = $tableMap[$sourceType]['entity_type'];
 
-$stmt = $pdo->prepare(
-    "UPDATE {$table}
-     SET point_value = ?, point_type = ?
-     WHERE id = ?"
-);
+$check =
+    $pdo->prepare("
+        SELECT
+            id,
+            schedule_date,
+            period,
+            point_value,
+            point_type
+        FROM {$table}
+        WHERE id = ?
+        LIMIT 1
+    ");
+
+$check->execute([
+    $sourceId
+]);
+
+$oldRow =
+    $check->fetch(
+        PDO::FETCH_ASSOC
+    );
+
+if (!$oldRow) {
+    json_response([
+        'success' => false,
+        'message' => 'Activity not found.',
+    ], 404);
+}
+
+$stmt =
+    $pdo->prepare("
+        UPDATE {$table}
+        SET
+            point_value = ?,
+            point_type = ?
+        WHERE id = ?
+    ");
 
 $stmt->execute([
     $pointValue,
@@ -79,23 +127,45 @@ $stmt->execute([
     $sourceId,
 ]);
 
-if ($stmt->rowCount() === 0) {
-    $check = $pdo->prepare(
-        "SELECT id, point_value, point_type
-         FROM {$table}
-         WHERE id = ?
-         LIMIT 1"
+$oldPointValue =
+    (float) (
+        $oldRow['point_value']
+        ?? 0
     );
 
-    $check->execute([$sourceId]);
-    $row = $check->fetch(PDO::FETCH_ASSOC);
+$oldPointType =
+    $oldRow['point_type']
+    ?? null;
 
-    if (!$row) {
-        json_response([
-            'success' => false,
-            'message' => 'Activity not found.',
-        ], 404);
-    }
+if (
+    $oldPointValue !== (float) $pointValue
+    ||
+    $oldPointType !== $pointType
+) {
+    $activityLogger->log(
+        current_user_id(),
+        'activity_points_changed',
+        $entityType,
+        $sourceId,
+        'Activity points changed',
+        [
+            'point_value' =>
+                $oldPointValue,
+            'point_type' =>
+                $oldPointType,
+        ],
+        [
+            'point_value' =>
+                $pointValue,
+            'point_type' =>
+                $pointType,
+        ],
+        null,
+        $oldRow['schedule_date']
+            ?? null,
+        $oldRow['period']
+            ?? null
+    );
 }
 
 json_response([
