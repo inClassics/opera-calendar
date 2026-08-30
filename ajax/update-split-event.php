@@ -23,12 +23,51 @@ if (mb_strlen($activity) > 255) {
     ], 422);
 }
 
+$stmt = $pdo->prepare("
+    SELECT
+        schedule_date,
+        period,
+        activity,
+        activity_override,
+        calendar_event_id
+    FROM schedule_split_events
+    WHERE id = ?
+    LIMIT 1
+");
+$stmt->execute([$eventId]);
+$oldRow = $stmt->fetch(PDO::FETCH_ASSOC);
+
 try {
     $schedule->updateSplitEvent(
         $eventId,
         $activity,
         current_user_id()
     );
+
+    $oldActivity = (string) (
+        $oldRow['activity_override']
+        ?? $oldRow['activity']
+        ?? ''
+    );
+
+    if ($oldActivity !== $activity) {
+        $activityLogger->log(
+            current_user_id(),
+            'split_event_activity_changed',
+            'split_event',
+            $eventId,
+            'Split event activity changed',
+            [
+                'activity' => $oldActivity,
+            ],
+            [
+                'activity' => $activity,
+            ],
+            null,
+            $oldRow['schedule_date'] ?? null,
+            $oldRow['period'] ?? null
+        );
+    }
 
     json_response([
         'success' => true,

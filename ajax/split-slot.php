@@ -23,6 +23,23 @@ try {
         current_user_id()
     );
 
+    $activityLogger->log(
+        current_user_id(),
+        'schedule_slot_split',
+        'schedule_slot',
+        null,
+        'Schedule slot split into separate events',
+        [
+            'activity' => $activity,
+        ],
+        [
+            'split_event_ids' => array_map('intval', $ids),
+        ],
+        null,
+        $date,
+        $period
+    );
+
     json_response([
         'success' => true,
         'event_ids' => $ids,

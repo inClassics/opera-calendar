@@ -23,11 +23,36 @@ if (mb_strlen($activity) > 255) {
     ], 422);
 }
 
+$stmt = $pdo->prepare("
+    SELECT schedule_date, period, activity
+    FROM schedule_split_events
+    WHERE id = ?
+    LIMIT 1
+");
+$stmt->execute([$eventId]);
+$parentEvent = $stmt->fetch(PDO::FETCH_ASSOC);
+
 try {
     $newId = $schedule->addSplitEvent(
         $eventId,
         $activity,
         current_user_id()
+    );
+
+    $activityLogger->log(
+        current_user_id(),
+        'split_event_created',
+        'split_event',
+        $newId,
+        'Split event added',
+        null,
+        [
+            'activity' => $activity,
+            'added_after_event_id' => $eventId,
+        ],
+        null,
+        $parentEvent['schedule_date'] ?? null,
+        $parentEvent['period'] ?? null
     );
 
     json_response([

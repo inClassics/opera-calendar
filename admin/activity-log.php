@@ -17,14 +17,37 @@ $entries =
         300
     );
 
+function activityScalarValue(
+    mixed $value
+): string {
+    if ($value === null) {
+        return '—';
+    }
+
+    if (is_bool($value)) {
+        return $value ? 'Yes' : 'No';
+    }
+
+    if ($value === '') {
+        return 'blank';
+    }
+
+    if (is_array($value)) {
+        return json_encode(
+            $value,
+            JSON_UNESCAPED_UNICODE
+                |
+                JSON_UNESCAPED_SLASHES
+        );
+    }
+
+    return (string) $value;
+}
+
 function activityValue(
     ?string $value
 ): string {
-    if (
-        $value === null
-        ||
-        $value === ''
-    ) {
+    if ($value === null || $value === '') {
         return '—';
     }
 
@@ -34,51 +57,20 @@ function activityValue(
             true
         );
 
-    if (
-        !is_array(
-            $decoded
-        )
-    ) {
+    if (!is_array($decoded)) {
         return $value;
     }
 
     $parts = [];
 
-    foreach (
-        $decoded
-        as $key => $item
-    ) {
-        if (
-            is_bool(
-                $item
-            )
-        ) {
-            $item =
-                $item
-                ? 'Yes'
-                : 'No';
-        }
-
-        if (
-            $item === ''
-        ) {
-            $item =
-                'blank';
-        }
-
+    foreach ($decoded as $key => $item) {
         $parts[] =
             $key
-            .
-            ': '
-            .
-            $item;
+            . ': '
+            . activityScalarValue($item);
     }
 
-    return
-        implode(
-            ', ',
-            $parts
-        );
+    return implode(', ', $parts);
 }
 
 ?>
@@ -86,27 +78,19 @@ function activityValue(
 <html lang="en">
 
 <head>
-
     <meta charset="utf-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>
         Activity log · <?= e(APP_NAME) ?>
     </title>
 
-    <link
-        rel="stylesheet"
-        href="../assets/css/app.css">
-
+    <link rel="stylesheet" href="../assets/css/app.css">
 </head>
 
 <body>
 
     <header class="topbar">
-
         <div class="brand">
             <?= e(APP_NAME) ?>
         </div>
@@ -116,34 +100,16 @@ function activityValue(
         </h1>
 
         <div class="account">
-
-            <a href="../index.php">
-                Schedule
-            </a>
-
-            <a href="import-calendar.php">
-                Import calendar
-            </a>
-
-            <a href="users.php">
-                Users
-            </a>
-
-            <a href="../logout.php">
-                Logout
-            </a>
-
+            <a href="../index.php">Schedule</a>
+            <a href="import-calendar.php">Import calendar</a>
+            <a href="users.php">Users</a>
+            <a href="../logout.php">Logout</a>
         </div>
-
     </header>
 
     <main class="admin-page">
-
         <section class="panel">
-
-            <h2>
-                Recent changes
-            </h2>
+            <h2>Recent changes</h2>
 
             <p class="muted">
                 Showing the most recent
@@ -152,175 +118,77 @@ function activityValue(
             </p>
 
             <div style="overflow:auto">
-
                 <table
                     style="
-                    width:100%;
-                    border-collapse:collapse;
-                    min-width:950px;
-                ">
-
+                        width:100%;
+                        border-collapse:collapse;
+                        min-width:950px;
+                    ">
                     <thead>
-
                         <tr>
-
-                            <th>
-                                Time
-                            </th>
-
-                            <th>
-                                Changed by
-                            </th>
-
-                            <th>
-                                Member
-                            </th>
-
-                            <th>
-                                Date
-                            </th>
-
-                            <th>
-                                Period
-                            </th>
-
-                            <th>
-                                Change
-                            </th>
-
-                            <th>
-                                Before
-                            </th>
-
-                            <th>
-                                After
-                            </th>
-
+                            <th>Time</th>
+                            <th>Changed by</th>
+                            <th>Member</th>
+                            <th>Date</th>
+                            <th>Period</th>
+                            <th>Change</th>
+                            <th>Before</th>
+                            <th>After</th>
                         </tr>
-
                     </thead>
 
                     <tbody>
-
-                        <?php foreach (
-                            $entries
-                            as $entry
-                        ): ?>
-
+                        <?php foreach ($entries as $entry): ?>
                             <tr>
-
                                 <td>
-                                    <?= e(
-                                        $entry['created_at']
-                                    ) ?>
+                                    <?= e($entry['created_at']) ?>
                                 </td>
 
                                 <td>
+                                    <?= e($entry['actor_name'] ?? 'System') ?>
 
-                                    <?= e(
-                                        $entry['actor_name']
-                                            ?? 'System'
-                                    ) ?>
-
-                                    <?php if (
-                                        (
-                                            $entry['actor_role']
-                                            ?? ''
-                                        )
-                                        === 'admin'
-                                    ): ?>
-
-                                        <strong>
-                                            (Admin)
-                                        </strong>
-
+                                    <?php if (($entry['actor_role'] ?? '') === 'admin'): ?>
+                                        <strong>(Admin)</strong>
                                     <?php endif; ?>
-
                                 </td>
 
                                 <td>
-
-                                    <?= e(
-                                        $entry['affected_name']
-                                            ?? '—'
-                                    ) ?>
-
+                                    <?= e($entry['affected_name'] ?? '—') ?>
                                 </td>
 
                                 <td>
-
-                                    <?= e(
-                                        $entry['schedule_date']
-                                            ?? '—'
-                                    ) ?>
-
+                                    <?= e($entry['schedule_date'] ?? '—') ?>
                                 </td>
 
                                 <td>
-
-                                    <?= e(
-                                        $entry['period']
-                                            ?? '—'
-                                    ) ?>
-
+                                    <?= e($entry['period'] ?? '—') ?>
                                 </td>
 
                                 <td>
-
-                                    <?= e(
-                                        $entry['description']
-                                    ) ?>
-
+                                    <?= e($entry['description']) ?>
                                 </td>
 
                                 <td>
-
-                                    <?= e(
-                                        activityValue(
-                                            $entry['old_value']
-                                        )
-                                    ) ?>
-
+                                    <?= e(activityValue($entry['old_value'])) ?>
                                 </td>
 
                                 <td>
-
-                                    <?= e(
-                                        activityValue(
-                                            $entry['new_value']
-                                        )
-                                    ) ?>
-
+                                    <?= e(activityValue($entry['new_value'])) ?>
                                 </td>
-
                             </tr>
-
                         <?php endforeach; ?>
 
-                        <?php if (
-                            !$entries
-                        ): ?>
-
+                        <?php if (!$entries): ?>
                             <tr>
-
-                                <td
-                                    colspan="8"
-                                    class="muted">
+                                <td colspan="8" class="muted">
                                     No activity has been logged yet.
                                 </td>
-
                             </tr>
-
                         <?php endif; ?>
-
                     </tbody>
-
                 </table>
-
             </div>
-
         </section>
-
     </main>
 
 </body>

@@ -1,8 +1,17 @@
 <?php
 
+require_once __DIR__ . '/ActivityLogger.php';
+
 final class ScheduleChangeTracker
 {
-    public function __construct(private PDO $pdo) {}
+    private ActivityLogger $activityLogger;
+
+    public function __construct(
+        private PDO $pdo
+    ) {
+        $this->activityLogger =
+            new ActivityLogger($pdo);
+    }
 
     public function changesForMonth(
         int $userId,
@@ -10,6 +19,11 @@ final class ScheduleChangeTracker
         DateTime $firstDay,
         DateTime $lastDay
     ): array {
+        /*
+        | Bring detailed Lydian/ICS changes into the common activity log first.
+        */
+        $this->activityLogger->mirrorCalendarChanges();
+
         $monthKey = $firstDay->format('Y-m');
         $currentMaxId = $this->currentMaxActivityId();
         $seenId = $this->seenId($userId, $monthKey);
@@ -106,6 +120,8 @@ final class ScheduleChangeTracker
         if (!$firstDay || $firstDay->format('Y-m') !== $monthKey) {
             throw new InvalidArgumentException('Invalid month.');
         }
+
+        $this->activityLogger->mirrorCalendarChanges();
 
         $activityId = $this->currentMaxActivityId();
 

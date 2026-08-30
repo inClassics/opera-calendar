@@ -53,6 +53,35 @@ class User
         return $stmt->fetchAll();
     }
 
+    public function findById(
+        int $id
+    ): ?array {
+        $stmt = $this->pdo->prepare(
+            "SELECT
+                id,
+                name,
+                username,
+                role,
+                status,
+                sort_order,
+                evening_starting_points,
+                morning_starting_points,
+                birthday,
+                name_day,
+                position,
+                multiplier
+             FROM users
+             WHERE id = ?
+             LIMIT 1"
+        );
+
+        $stmt->execute([$id]);
+
+        $user = $stmt->fetch();
+
+        return $user ?: null;
+    }
+
     public function findByUsername(
         string $username
     ): ?array {
@@ -85,8 +114,10 @@ class User
         string $username,
         string $password,
         string $role,
-        int $sortOrder
-    ): void {
+        int $sortOrder,
+        string $position = 'Tutti',
+        float $multiplier = 1.0
+    ): int {
         $stmt = $this->pdo->prepare(
             "INSERT INTO users
             (
@@ -95,9 +126,11 @@ class User
                 password_hash,
                 role,
                 status,
-                sort_order
+                sort_order,
+                position,
+                multiplier
             )
-            VALUES (?, ?, ?, ?, 1, ?)"
+            VALUES (?, ?, ?, ?, 1, ?, ?, ?)"
         );
 
         $stmt->execute([
@@ -109,7 +142,11 @@ class User
             ),
             $role,
             $sortOrder,
+            $position,
+            $multiplier,
         ]);
+
+        return (int) $this->pdo->lastInsertId();
     }
 
     public function update(
@@ -119,6 +156,8 @@ class User
         string $role,
         int $status,
         int $sortOrder,
+        string $position,
+        float $multiplier,
         ?string $password = null
     ): void {
         if (
@@ -134,6 +173,8 @@ class User
                     role = ?,
                     status = ?,
                     sort_order = ?,
+                    position = ?,
+                    multiplier = ?,
                     password_hash = ?
                  WHERE id = ?"
             );
@@ -144,6 +185,8 @@ class User
                 $role,
                 $status,
                 $sortOrder,
+                $position,
+                $multiplier,
                 password_hash(
                     $password,
                     PASSWORD_DEFAULT
@@ -161,7 +204,9 @@ class User
                 username = ?,
                 role = ?,
                 status = ?,
-                sort_order = ?
+                sort_order = ?,
+                position = ?,
+                multiplier = ?
              WHERE id = ?"
         );
 
@@ -171,6 +216,8 @@ class User
             $role,
             $status,
             $sortOrder,
+            $position,
+            $multiplier,
             $id
         ]);
     }

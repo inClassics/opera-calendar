@@ -11,7 +11,7 @@ ajax_require_member_access($userId);
 ajax_require_active_user($pdo, $userId);
 
 $stmt = $pdo->prepare(
-    'SELECT id
+    'SELECT id, status, uncertain
      FROM availability
      WHERE user_id = ?
        AND schedule_date = ?
@@ -26,12 +26,16 @@ $stmt->execute([
     $period,
 ]);
 
-if (!$stmt->fetchColumn()) {
+$row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$row) {
     json_response([
         'success' => false,
         'message' => 'Set availability before adding a question mark.',
     ], 422);
 }
+
+$oldUncertain = !empty($row['uncertain']);
 
 $schedule->setUncertain(
     $userId,
@@ -40,6 +44,27 @@ $schedule->setUncertain(
     $uncertain,
     current_user_id()
 );
+
+if ($oldUncertain !== $uncertain) {
+    $activityLogger->log(
+        current_user_id(),
+        'availability_uncertain_changed',
+        'availability',
+        (int) $row['id'],
+        'Availability certainty changed',
+        [
+            'status' => $row['status'],
+            'uncertain' => $oldUncertain,
+        ],
+        [
+            'status' => $row['status'],
+            'uncertain' => $uncertain,
+        ],
+        $userId,
+        $date,
+        $period
+    );
+}
 
 json_response([
     'success' => true,
