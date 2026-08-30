@@ -350,6 +350,12 @@ $csrf =
                     Users
                 </a>
 
+                <a href="admin/activity-log.php">
+
+                    Changes
+
+                </a>
+
             <?php endif; ?>
 
             <a href="change-password.php">
