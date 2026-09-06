@@ -87,19 +87,59 @@ class CalendarFeedSync
         }
 
         require_once __DIR__ . '/IcsImporter.php';
+        require_once __DIR__ . '/ActivityLogger.php';
 
         $importer = new IcsImporter(
             $this->pdo,
             $this->timezone
         );
 
-        return $importer->import(
-            $icsText,
-            $sourceKey,
-            $sourceName,
-            $url,
-            true
-        );
+        $result =
+            $importer->import(
+                $icsText,
+                $sourceKey,
+                $sourceName,
+                $url,
+                true
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Activity log
+        |--------------------------------------------------------------------------
+        |
+        | Mirror ONLY the calendar changes created by this exact sync run.
+        | Never scan historical calendar_event_changes while someone opens
+        | the schedule.
+        |
+        */
+
+        $result['activity_logged'] =
+            0;
+
+        if (
+            !empty($result['sync_run_id'])
+        ) {
+            try {
+                $logger =
+                    new ActivityLogger(
+                        $this->pdo
+                    );
+
+                $result['activity_logged'] =
+                    $logger
+                    ->mirrorCalendarChangesForRun(
+                        (int) $result['sync_run_id']
+                    );
+            } catch (Throwable) {
+                /*
+                | Calendar sync itself has already succeeded.
+                | An activity-log problem must not make the sync appear failed.
+                */
+            }
+        }
+
+        return $result;
     }
 
     private function normalizeFeedUrl(

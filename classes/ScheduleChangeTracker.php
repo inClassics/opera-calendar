@@ -1,17 +1,10 @@
 <?php
 
-require_once __DIR__ . '/ActivityLogger.php';
-
 final class ScheduleChangeTracker
 {
-    private ActivityLogger $activityLogger;
-
     public function __construct(
         private PDO $pdo
-    ) {
-        $this->activityLogger =
-            new ActivityLogger($pdo);
-    }
+    ) {}
 
     public function changesForMonth(
         int $userId,
@@ -20,23 +13,48 @@ final class ScheduleChangeTracker
         DateTime $lastDay
     ): array {
         /*
-        | Bring detailed Lydian/ICS changes into the common activity log first.
+        | firstDay/lastDay are the padded Monday-Sunday display range.
+        | firstDay can therefore belong to the previous month.
+        |
+        | Moving seven days forward is always safely inside the actual
+        | requested calendar month.
         */
-        $this->activityLogger->mirrorCalendarChanges();
+        $monthKey =
+            (clone $firstDay)
+            ->modify('+7 days')
+            ->format('Y-m');
 
-        $monthKey = $firstDay->format('Y-m');
-        $currentMaxId = $this->currentMaxActivityId();
-        $seenId = $this->seenId($userId, $monthKey);
+        $currentMaxId =
+            $this->currentMaxActivityId();
+
+        $seenId =
+            $this->seenId(
+                $userId,
+                $monthKey
+            );
 
         if ($seenId === null) {
-            $this->saveSeenId($userId, $monthKey, $currentMaxId);
+            /*
+            | First visit after installation/reset establishes a baseline.
+            | Existing historical log rows must not suddenly appear as new.
+            */
+            $this->saveSeenId(
+                $userId,
+                $monthKey,
+                $currentMaxId
+            );
 
             return [
-                'month' => $monthKey,
-                'last_seen_activity_id' => $currentMaxId,
-                'current_activity_id' => $currentMaxId,
-                'count' => 0,
-                'changes' => [],
+                'month' =>
+                $monthKey,
+                'last_seen_activity_id' =>
+                $currentMaxId,
+                'current_activity_id' =>
+                $currentMaxId,
+                'count' =>
+                0,
+                'changes' =>
+                [],
             ];
         }
 
@@ -85,22 +103,40 @@ final class ScheduleChangeTracker
                     OR l.affected_user_id = ?
                 )
             ";
-            $params[] = $userId;
+
+            $params[] =
+                $userId;
         }
 
-        $sql .= " ORDER BY l.id ASC";
+        $sql .= "
+            ORDER BY l.id ASC
+        ";
 
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
+        $stmt =
+            $this->pdo->prepare(
+                $sql
+            );
 
-        $changes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt->execute(
+            $params
+        );
+
+        $changes =
+            $stmt->fetchAll(
+                PDO::FETCH_ASSOC
+            );
 
         return [
-            'month' => $monthKey,
-            'last_seen_activity_id' => $seenId,
-            'current_activity_id' => $currentMaxId,
-            'count' => count($changes),
-            'changes' => $changes,
+            'month' =>
+            $monthKey,
+            'last_seen_activity_id' =>
+            $seenId,
+            'current_activity_id' =>
+            $currentMaxId,
+            'count' =>
+            count($changes),
+            'changes' =>
+            $changes,
         ];
     }
 
@@ -108,22 +144,39 @@ final class ScheduleChangeTracker
         int $userId,
         string $monthKey
     ): int {
-        if (!preg_match('/^\d{4}-\d{2}$/', $monthKey)) {
-            throw new InvalidArgumentException('Invalid month.');
+        if (
+            !preg_match(
+                '/^\d{4}-\d{2}$/',
+                $monthKey
+            )
+        ) {
+            throw new InvalidArgumentException(
+                'Invalid month.'
+            );
         }
 
-        $firstDay = DateTime::createFromFormat(
-            '!Y-m-d',
-            $monthKey . '-01'
-        );
+        $firstDay =
+            DateTime::createFromFormat(
+                '!Y-m-d',
+                $monthKey . '-01'
+            );
 
-        if (!$firstDay || $firstDay->format('Y-m') !== $monthKey) {
-            throw new InvalidArgumentException('Invalid month.');
+        if (
+            !$firstDay
+            ||
+            $firstDay->format('Y-m')
+            !== $monthKey
+        ) {
+            throw new InvalidArgumentException(
+                'Invalid month.'
+            );
         }
 
-        $this->activityLogger->mirrorCalendarChanges();
-
-        $activityId = $this->currentMaxActivityId();
+        /*
+        | Reading/marking changes must never create new activity log rows.
+        */
+        $activityId =
+            $this->currentMaxActivityId();
 
         $this->saveSeenId(
             $userId,
@@ -136,7 +189,8 @@ final class ScheduleChangeTracker
 
     private function currentMaxActivityId(): int
     {
-        return (int) $this->pdo
+        return (int)
+        $this->pdo
             ->query(
                 'SELECT COALESCE(MAX(id), 0) FROM activity_log'
             )
@@ -147,22 +201,25 @@ final class ScheduleChangeTracker
         int $userId,
         string $monthKey
     ): ?int {
-        $stmt = $this->pdo->prepare("
-            SELECT last_seen_activity_id
-            FROM user_schedule_seen
-            WHERE user_id = ?
-              AND month_key = ?
-            LIMIT 1
-        ");
+        $stmt =
+            $this->pdo->prepare("
+                SELECT last_seen_activity_id
+                FROM user_schedule_seen
+                WHERE user_id = ?
+                  AND month_key = ?
+                LIMIT 1
+            ");
 
         $stmt->execute([
             $userId,
             $monthKey,
         ]);
 
-        $value = $stmt->fetchColumn();
+        $value =
+            $stmt->fetchColumn();
 
-        return $value === false
+        return
+            $value === false
             ? null
             : (int) $value;
     }
@@ -172,21 +229,22 @@ final class ScheduleChangeTracker
         string $monthKey,
         int $activityId
     ): void {
-        $stmt = $this->pdo->prepare("
-            INSERT INTO user_schedule_seen
-            (
-                user_id,
-                month_key,
-                last_seen_activity_id,
-                last_seen_at
-            )
-            VALUES (?, ?, ?, NOW())
-            ON DUPLICATE KEY UPDATE
-                last_seen_activity_id =
-                    VALUES(last_seen_activity_id),
-                last_seen_at =
-                    VALUES(last_seen_at)
-        ");
+        $stmt =
+            $this->pdo->prepare("
+                INSERT INTO user_schedule_seen
+                (
+                    user_id,
+                    month_key,
+                    last_seen_activity_id,
+                    last_seen_at
+                )
+                VALUES (?, ?, ?, NOW())
+                ON DUPLICATE KEY UPDATE
+                    last_seen_activity_id =
+                        VALUES(last_seen_activity_id),
+                    last_seen_at =
+                        VALUES(last_seen_at)
+            ");
 
         $stmt->execute([
             $userId,

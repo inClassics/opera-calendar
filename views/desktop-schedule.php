@@ -356,19 +356,7 @@ function desktopPaperRenderRoster(
 
         <div class="desktop-paper-roster-left">
 
-            <div class="desktop-paper-roster-labels">
 
-                <span>
-                    Name
-                </span>
-
-                <span>
-                    <?= $period === 'morning'
-                        ? 'Rehearsal '
-                        : 'Concert ' ?>Pts
-                </span>
-
-            </div>
 
             <?php foreach ($members as $member): ?>
 
@@ -564,6 +552,10 @@ function desktopPaperRenderActivities(
 
         <div class="desktop-paper-activities-label">
             <?= e($periodLabel) ?>
+            <span class="desktop-paper-activities-label--points">
+                <?= e($periodLabel) == "Evening" ? "Concert points" : "Rehearsal points" ?>
+
+            </span>
         </div>
 
         <div class="desktop-paper-activities-days">

@@ -2,23 +2,57 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 
-$userId = (int) ($_POST['user_id'] ?? 0);
-$date = ajax_date((string) ($_POST['date'] ?? ''));
-$period = ajax_period((string) ($_POST['period'] ?? ''));
-$uncertain = (string) ($_POST['uncertain'] ?? '0') === '1';
+$userId =
+    (int) (
+        $_POST['user_id']
+        ?? 0
+    );
 
-ajax_require_member_access($userId);
-ajax_require_active_user($pdo, $userId);
+$date =
+    ajax_date(
+        (string) (
+            $_POST['date']
+            ?? ''
+        )
+    );
 
-$stmt = $pdo->prepare(
-    'SELECT id, status, uncertain
-     FROM availability
-     WHERE user_id = ?
-       AND schedule_date = ?
-       AND period = ?
-       AND status IS NOT NULL
-     LIMIT 1'
+$period =
+    ajax_period(
+        (string) (
+            $_POST['period']
+            ?? ''
+        )
+    );
+
+$uncertain =
+    (string) (
+        $_POST['uncertain']
+        ?? '0'
+    )
+    === '1';
+
+ajax_require_member_access(
+    $userId
 );
+
+ajax_require_active_user(
+    $pdo,
+    $userId
+);
+
+$stmt =
+    $pdo->prepare("
+        SELECT
+            id,
+            status,
+            uncertain
+        FROM availability
+        WHERE user_id = ?
+          AND schedule_date = ?
+          AND period = ?
+          AND status IS NOT NULL
+        LIMIT 1
+    ");
 
 $stmt->execute([
     $userId,
@@ -26,16 +60,29 @@ $stmt->execute([
     $period,
 ]);
 
-$row = $stmt->fetch(PDO::FETCH_ASSOC);
+$row =
+    $stmt->fetch(
+        PDO::FETCH_ASSOC
+    );
 
-if (!$row) {
+if (
+    !$row
+    ||
+    empty($row['status'])
+) {
     json_response([
         'success' => false,
-        'message' => 'Set availability before adding a question mark.',
+        'message' =>
+        'Set availability before adding a question mark.',
     ], 422);
 }
 
-$oldUncertain = !empty($row['uncertain']);
+$before = [
+    'status' =>
+    $row['status'],
+    'uncertain' =>
+    !empty($row['uncertain']),
+];
 
 $schedule->setUncertain(
     $userId,
@@ -45,26 +92,23 @@ $schedule->setUncertain(
     current_user_id()
 );
 
-if ($oldUncertain !== $uncertain) {
-    $activityLogger->log(
+$after = [
+    'status' =>
+    $row['status'],
+    'uncertain' =>
+    $uncertain,
+];
+
+$activityLogger
+    ->logAvailabilityState(
         current_user_id(),
-        'availability_uncertain_changed',
-        'availability',
-        (int) $row['id'],
-        'Availability certainty changed',
-        [
-            'status' => $row['status'],
-            'uncertain' => $oldUncertain,
-        ],
-        [
-            'status' => $row['status'],
-            'uncertain' => $uncertain,
-        ],
         $userId,
         $date,
-        $period
+        $period,
+        $before,
+        $after,
+        (int) $row['id']
     );
-}
 
 json_response([
     'success' => true,

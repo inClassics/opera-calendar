@@ -33,7 +33,8 @@ if (
 ) {
     json_response([
         'success' => false,
-        'message' => 'Invalid availability status.',
+        'message' =>
+        'Invalid availability status.',
     ], 400);
 }
 
@@ -51,12 +52,6 @@ ajax_require_split_event(
     $eventId
 );
 
-/*
-|--------------------------------------------------------------------------
-| Split event information
-|--------------------------------------------------------------------------
-*/
-
 $stmt =
     $pdo->prepare("
         SELECT
@@ -73,17 +68,15 @@ $stmt->execute([
 ]);
 
 $event =
-    $stmt->fetch();
-
-/*
-|--------------------------------------------------------------------------
-| Previous availability
-|--------------------------------------------------------------------------
-*/
+    $stmt->fetch(
+        PDO::FETCH_ASSOC
+    );
 
 $stmt =
     $pdo->prepare("
-        SELECT status
+        SELECT
+            status,
+            uncertain
         FROM split_availability
         WHERE split_event_id = ?
           AND user_id = ?
@@ -95,20 +88,18 @@ $stmt->execute([
     $userId
 ]);
 
-$oldStatus =
-    $stmt->fetchColumn();
+$oldRow =
+    $stmt->fetch(
+        PDO::FETCH_ASSOC
+    );
 
-if (
-    $oldStatus === false
-) {
-    $oldStatus = '';
-}
-
-/*
-|--------------------------------------------------------------------------
-| Save
-|--------------------------------------------------------------------------
-*/
+$before = [
+    'status' =>
+    $oldRow['status']
+        ?? '',
+    'uncertain' =>
+    !empty($oldRow['uncertain']),
+];
 
 $schedule->saveSplitAvailability(
     $eventId,
@@ -117,44 +108,55 @@ $schedule->saveSplitAvailability(
     current_user_id()
 );
 
-/*
-|--------------------------------------------------------------------------
-| Log
-|--------------------------------------------------------------------------
-*/
+$stmt =
+    $pdo->prepare("
+        SELECT
+            status,
+            uncertain
+        FROM split_availability
+        WHERE split_event_id = ?
+          AND user_id = ?
+        LIMIT 1
+    ");
 
-if (
-    $oldStatus !== $status
-) {
-    $activityLogger->log(
-        current_user_id(),
-        'split_availability_changed',
-        'split_event',
-        $eventId,
-        'Split-event availability changed',
-        [
-            'status' =>
-            $oldStatus,
+$stmt->execute([
+    $eventId,
+    $userId
+]);
 
-            'activity' =>
-            $event['activity']
-                ?? '',
-        ],
-        [
-            'status' =>
-            $status,
-
-            'activity' =>
-            $event['activity']
-                ?? '',
-        ],
-        $userId,
-        $event['schedule_date']
-            ?? null,
-        $event['period']
-            ?? null
+$newRow =
+    $stmt->fetch(
+        PDO::FETCH_ASSOC
     );
-}
+
+$after = [
+    'status' =>
+    $newRow['status']
+        ?? '',
+    'uncertain' =>
+    !empty($newRow['uncertain']),
+];
+
+$activityLogger
+    ->logSplitAvailabilityState(
+        current_user_id(),
+        $userId,
+        $eventId,
+        (string) (
+            $event['schedule_date']
+            ?? ''
+        ),
+        (string) (
+            $event['period']
+            ?? ''
+        ),
+        (string) (
+            $event['activity']
+            ?? ''
+        ),
+        $before,
+        $after
+    );
 
 json_response([
     'success' => true,

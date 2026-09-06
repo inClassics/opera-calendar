@@ -356,7 +356,7 @@
 }
 
 .desktop-paper-date-cell.is-monday span {
-  display: none;
+  /* display: none; */
 }
 
 /*
@@ -398,16 +398,6 @@
   grid-template-rows:
     20px
     repeat(7, var(--person-row-height));
-}
-
-.desktop-paper-event-marks::before {
-  content: "";
-
-  display: block;
-
-  border-bottom: 1px solid #dce1e6;
-
-  background: rgba(247, 248, 250, 0.55);
 }
 
 .desktop-paper-mark-wrap {
@@ -496,7 +486,7 @@
 
 .desktop-paper-activities-label {
   display: flex;
-
+  flex-direction: column;
   align-items: flex-start;
 
   padding: 9px 10px;
@@ -509,6 +499,13 @@
   letter-spacing: 0.05em;
 
   text-transform: uppercase;
+}
+
+.desktop-paper-activities-label--points {
+  display: block;
+  text-transform: lowercase;
+  font-size: 10px;
+  font-weight: normal;
 }
 
 .desktop-paper-activities-morning .desktop-paper-activities-label {

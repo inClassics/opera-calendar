@@ -43,7 +43,8 @@ if (
 ) {
     json_response([
         'success' => false,
-        'message' => 'Invalid availability status.',
+        'message' =>
+        'Invalid availability status.',
     ], 400);
 }
 
@@ -56,15 +57,12 @@ ajax_require_active_user(
     $userId
 );
 
-/*
-|--------------------------------------------------------------------------
-| Current value before change
-|--------------------------------------------------------------------------
-*/
-
 $stmt =
     $pdo->prepare("
-        SELECT status
+        SELECT
+            id,
+            status,
+            uncertain
         FROM availability
         WHERE user_id = ?
           AND schedule_date = ?
@@ -78,20 +76,18 @@ $stmt->execute([
     $period
 ]);
 
-$oldStatus =
-    $stmt->fetchColumn();
+$oldRow =
+    $stmt->fetch(
+        PDO::FETCH_ASSOC
+    );
 
-if (
-    $oldStatus === false
-) {
-    $oldStatus = '';
-}
-
-/*
-|--------------------------------------------------------------------------
-| Save
-|--------------------------------------------------------------------------
-*/
+$before = [
+    'status' =>
+    $oldRow['status']
+        ?? '',
+    'uncertain' =>
+    !empty($oldRow['uncertain']),
+];
 
 $schedule->saveAvailability(
     $userId,
@@ -101,34 +97,54 @@ $schedule->saveAvailability(
     current_user_id()
 );
 
-/*
-|--------------------------------------------------------------------------
-| Log only if something actually changed
-|--------------------------------------------------------------------------
-*/
+$stmt =
+    $pdo->prepare("
+        SELECT
+            id,
+            status,
+            uncertain
+        FROM availability
+        WHERE user_id = ?
+          AND schedule_date = ?
+          AND period = ?
+        LIMIT 1
+    ");
 
-if (
-    $oldStatus !== $status
-) {
-    $activityLogger->log(
+$stmt->execute([
+    $userId,
+    $date,
+    $period
+]);
+
+$newRow =
+    $stmt->fetch(
+        PDO::FETCH_ASSOC
+    );
+
+$after = [
+    'status' =>
+    $newRow['status']
+        ?? '',
+    'uncertain' =>
+    !empty($newRow['uncertain']),
+];
+
+$activityLogger
+    ->logAvailabilityState(
         current_user_id(),
-        'availability_changed',
-        'availability',
-        null,
-        'Availability changed',
-        [
-            'status' =>
-            $oldStatus,
-        ],
-        [
-            'status' =>
-            $status,
-        ],
         $userId,
         $date,
-        $period
+        $period,
+        $before,
+        $after,
+        isset($newRow['id'])
+            ? (int) $newRow['id']
+            : (
+                isset($oldRow['id'])
+                ? (int) $oldRow['id']
+                : null
+            )
     );
-}
 
 json_response([
     'success' => true,
