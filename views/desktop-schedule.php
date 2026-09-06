@@ -9,10 +9,6 @@ $desktopWeeks =
 function desktopPaperPointEditor(
     array $pointItem
 ): void {
-    if (!is_admin()) {
-        return;
-    }
-
     $pointType =
         $pointItem['point_type']
         ?? '';

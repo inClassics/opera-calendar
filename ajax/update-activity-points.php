@@ -2,8 +2,6 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 
-ajax_require_admin();
-
 $sourceType = trim((string) ($_POST['source_type'] ?? ''));
 $sourceId = (int) ($_POST['source_id'] ?? 0);
 $pointValueRaw = trim((string) ($_POST['point_value'] ?? ''));
@@ -150,15 +148,15 @@ if (
         'Activity points changed',
         [
             'point_value' =>
-                $oldPointValue,
+            $oldPointValue,
             'point_type' =>
-                $oldPointType,
+            $oldPointType,
         ],
         [
             'point_value' =>
-                $pointValue,
+            $pointValue,
             'point_type' =>
-                $pointType,
+            $pointType,
         ],
         null,
         $oldRow['schedule_date']
