@@ -181,18 +181,6 @@ function desktopPaperWeekNumber(
     )->format('W');
 }
 
-/*
-|--------------------------------------------------------------------------
-| Does this date contain any real activity?
-|--------------------------------------------------------------------------
-|
-| Monday is normally a day off.
-|
-| If either the morning or evening contains an activity, Monday changes
-| from green to bright orange.
-|
-*/
-
 function desktopPaperDayHasActivity(
     array $day,
     array $splitEvents = [],
@@ -201,12 +189,6 @@ function desktopPaperDayHasActivity(
     $date =
         $day['date']
         ?? '';
-
-    /*
-    |--------------------------------------------------------------------------
-    | Normal/manual/imported activity
-    |--------------------------------------------------------------------------
-    */
 
     if (
         trim(
@@ -232,12 +214,6 @@ function desktopPaperDayHasActivity(
         return true;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Split events
-    |--------------------------------------------------------------------------
-    */
-
     if (
         !empty($splitEvents[$date]['morning']
             ?? [])
@@ -251,12 +227,6 @@ function desktopPaperDayHasActivity(
     ) {
         return true;
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Point-linked calendar activity fallback
-    |--------------------------------------------------------------------------
-    */
 
     if (
         !empty($activityPointItems[$date]['morning']
@@ -296,12 +266,6 @@ function desktopPaperDayClass(
         $classes[] =
             'is-weekend';
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Monday
-    |--------------------------------------------------------------------------
-    */
 
     if (
         ($day['weekday'] ?? '')
@@ -355,8 +319,6 @@ function desktopPaperRenderRoster(
     <div class="desktop-paper-roster">
 
         <div class="desktop-paper-roster-left">
-
-
 
             <?php foreach ($members as $member): ?>
 
@@ -435,7 +397,13 @@ function desktopPaperRenderRoster(
                                 : null;
                             ?>
 
-                            <div class="desktop-paper-event-marks">
+                            <div
+                                class="desktop-paper-event-marks"
+                                style="--member-count: <?= count($members) ?>">
+
+                                <div
+                                    class="desktop-paper-mark-spacer"
+                                    aria-hidden="true"></div>
 
                                 <?php foreach ($members as $member): ?>
 
@@ -498,6 +466,7 @@ function desktopPaperRenderRoster(
                                                 data-status="<?= e($status) ?>"
                                                 data-uncertain="<?= $uncertain ? '1' : '0' ?>"
                                                 data-counts-for-points="<?= $countsForPoints ? '1' : '0' ?>"
+                                                aria-label="Availability for split event <?= $eventId ?>"
                                                 <?= !$editable ? 'disabled' : '' ?>></button>
 
                                         <?php else: ?>
@@ -778,6 +747,49 @@ function desktopPaperRenderActivities(
 <?php
 }
 ?>
+
+<style>
+    /*
+|--------------------------------------------------------------------------
+| Split-event availability alignment
+|--------------------------------------------------------------------------
+|
+| Each split activity has one matching availability column. The old desktop
+| grid reserved a 20px row but did not render that row, which shifted member
+| availability and made the split availability columns visually unclear.
+|
+*/
+
+    .desktop-paper-event-marks {
+        grid-template-rows:
+            20px repeat(var(--member-count), var(--person-row-height)) !important;
+    }
+
+    .desktop-paper-mark-spacer {
+        min-height: 20px;
+        border-bottom: 1px solid #e4e8ec;
+        background: rgba(0, 0, 0, 0.018);
+    }
+
+    /* Make each split boundary visible through both the roster and activity. */
+    .desktop-paper-roster-day .desktop-paper-event-marks+.desktop-paper-event-marks,
+    .desktop-paper-activity-day .desktop-paper-activity+.desktop-paper-activity {
+        border-left: 2px solid #aeb8c2 !important;
+    }
+
+    /*
+| Empty split availability is still a real field. Give it a subtle visible
+| surface so users can see there is a separate clickable cell even before a
+| mark has been entered.
+*/
+    body.editing-mode .split-availability-cell.editable[data-status=""] {
+        background: rgba(54, 95, 137, 0.045);
+    }
+
+    body.editing-mode .split-availability-cell.editable[data-status=""]:hover {
+        background: rgba(54, 95, 137, 0.12);
+    }
+</style>
 
 <div class="desktop-schedule desktop-paper-schedule">
 
