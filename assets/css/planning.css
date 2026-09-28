@@ -1,83 +1,165 @@
 .planning-page {
-  max-width: 1500px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   padding: 20px;
+  box-sizing: border-box;
 }
+
 .planning-toolbar {
   display: flex;
   gap: 14px;
   align-items: center;
   margin-bottom: 14px;
 }
+
 .planning-toolbar > input {
   max-width: 420px;
 }
+
 .planning-check {
   display: flex;
-  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
 }
+
 .planning-check input {
   width: auto;
 }
+
 .planning-list {
+  width: 100%;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
 }
+
+/*
+|--------------------------------------------------------------------------
+| Desktop Planning table
+|--------------------------------------------------------------------------
+| Keep every activity on one physical row. The current Planning page has:
+| Date/Call, Activity, Piece, Need, Points, Type, Available, Assigned, Status.
+*/
 .planning-row {
   display: grid;
-  grid-template-columns: 125px minmax(260px, 2fr) minmax(180px, 1fr) 75px 80px 80px 110px;
+  grid-template-columns:
+    145px
+    minmax(300px, 2.6fr)
+    minmax(180px, 1.25fr)
+    70px
+    74px
+    105px
+    70px
+    70px
+    105px;
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
   border-top: 1px solid var(--border);
+  box-sizing: border-box;
 }
+
 .planning-row:first-child {
   border-top: 0;
 }
+
 .planning-head {
   background: var(--soft);
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.planning-date,
+
+.planning-head > div {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.planning-date {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  min-width: 0;
+}
+
+.planning-date strong {
+  white-space: nowrap;
+}
+
 .planning-title {
   display: grid;
   gap: 3px;
+  min-width: 0;
 }
+
+.planning-title strong {
+  line-height: 1.2;
+}
+
 .planning-date span,
-.planning-title span {
-  font-size: 11px;
+.planning-title span,
+.planning-suggestion {
+  font-size: 10px;
   color: var(--muted);
 }
+
+.planning-suggestion {
+  display: block;
+  margin-top: 2px;
+  font-style: italic;
+}
+
 .planning-number {
   text-align: center;
   font-weight: 700;
 }
+
 .planning-row.has-problem {
   box-shadow: inset 4px 0 #b85c36;
 }
+
 .planning-warning {
   border-color: #d8a38c;
   background: #fff5f0;
 }
-.planning-required {
-  padding: 8px;
+
+.planning-row > div {
+  min-width: 0;
 }
-.planning-piece {
-  padding: 8px;
+
+.planning-required,
+.planning-piece,
+.planning-period,
+.planning-points,
+.planning-point-type {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 7px 8px;
 }
+
+.planning-period.is-suggested,
+.planning-point-type.is-suggested {
+  border-style: dashed;
+}
+
+.planning-manage {
+  width: 100%;
+  white-space: nowrap;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
 .planning-drawer-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.25);
   z-index: 9998;
 }
+
 .planning-drawer {
   position: fixed;
   z-index: 9999;
@@ -91,6 +173,7 @@
   box-shadow: -15px 0 45px rgba(0, 0, 0, 0.18);
   overflow: auto;
 }
+
 .planning-drawer-close {
   float: right;
   border: 0;
@@ -98,14 +181,17 @@
   font-size: 28px;
   cursor: pointer;
 }
+
 .planning-drawer-meta {
   color: var(--muted);
   margin: 5px 0 18px;
 }
+
 .planning-members {
   display: grid;
   gap: 8px;
 }
+
 .planning-member {
   display: grid;
   grid-template-columns: 30px 1fr;
@@ -115,30 +201,37 @@
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+
 .planning-member input {
   width: auto;
 }
+
 .planning-member span {
   display: grid;
 }
+
 .planning-member small {
   color: var(--muted);
   margin-top: 2px;
 }
+
 .stats-filter {
   display: flex;
   align-items: end;
   gap: 10px;
   margin-bottom: 18px;
 }
+
 .stats-filter label {
   max-width: 180px;
 }
+
 .stats-table {
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
 }
+
 .stats-row {
   display: grid;
   grid-template-columns: minmax(160px, 1.5fr) repeat(5, 1fr);
@@ -146,26 +239,42 @@
   padding: 10px 12px;
   border-top: 1px solid var(--border);
 }
+
 .stats-row:first-child {
   border-top: 0;
 }
+
 .stats-head {
   background: var(--soft);
   font-size: 12px;
 }
-@media (max-width: 900px) {
+
+/*
+|--------------------------------------------------------------------------
+| Narrow screens
+|--------------------------------------------------------------------------
+| Desktop remains one row. Only when the viewport genuinely cannot contain
+| the table do we allow horizontal scrolling rather than wrapping columns.
+*/
+@media (max-width: 1200px) {
   .planning-list {
     overflow-x: auto;
   }
+
   .planning-row {
-    min-width: 980px;
+    min-width: 1120px;
   }
+
   .planning-toolbar {
     flex-wrap: wrap;
   }
+}
+
+@media (max-width: 900px) {
   .stats-table {
     overflow-x: auto;
   }
+
   .stats-row {
     min-width: 760px;
   }
