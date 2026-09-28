@@ -1,43 +1,43 @@
 (() => {
   const rosters = document.querySelectorAll(".desktop-paper-roster");
 
-  const clearRoster = (roster) => {
-    roster.querySelectorAll(".roster-row-hover").forEach((element) => element.classList.remove("roster-row-hover"));
+  const clear = (roster) => {
+    roster.querySelectorAll(".roster-row-hover").forEach((el) => el.classList.remove("roster-row-hover"));
   };
 
-  const memberIdsForRoster = (roster) => {
-    const firstMarks = roster.querySelector(".desktop-paper-event-marks");
-    if (!firstMarks) return [];
-
-    return Array.from(firstMarks.querySelectorAll(".desktop-paper-mark-wrap .member-cell[data-user-id]")).map((cell) => cell.dataset.userId || "");
-  };
-
-  const highlightUser = (roster, userId) => {
-    clearRoster(roster);
+  const highlight = (roster, userId) => {
+    clear(roster);
     if (!userId) return;
 
-    const ids = memberIdsForRoster(roster);
-    const memberIndex = ids.indexOf(String(userId));
+    const people = Array.from(roster.querySelectorAll(".desktop-paper-person"));
 
-    if (memberIndex >= 0) {
-      const person = roster.querySelectorAll(".desktop-paper-person")[memberIndex];
-      person?.classList.add("roster-row-hover");
+    const firstEvent = roster.querySelector(".desktop-paper-event-marks");
+    const firstCells = firstEvent ? Array.from(firstEvent.querySelectorAll(".member-cell[data-user-id]")) : [];
+
+    const index = firstCells.findIndex((cell) => String(cell.dataset.userId) === String(userId));
+
+    if (index >= 0 && people[index]) {
+      people[index].classList.add("roster-row-hover");
     }
 
-    roster.querySelectorAll(`.desktop-paper-mark-wrap .member-cell[data-user-id="${CSS.escape(String(userId))}"]`).forEach((cell) => {
-      cell.closest(".desktop-paper-mark-wrap")?.classList.add("roster-row-hover");
+    roster.querySelectorAll(".member-cell[data-user-id]").forEach((cell) => {
+      if (String(cell.dataset.userId) === String(userId)) {
+        cell.closest(".desktop-paper-mark-wrap")?.classList.add("roster-row-hover");
+      }
     });
   };
 
   rosters.forEach((roster) => {
     const people = Array.from(roster.querySelectorAll(".desktop-paper-person"));
-    const ids = memberIdsForRoster(roster);
+
+    const firstEvent = roster.querySelector(".desktop-paper-event-marks");
+    const firstCells = firstEvent ? Array.from(firstEvent.querySelectorAll(".member-cell[data-user-id]")) : [];
 
     people.forEach((person, index) => {
-      const userId = ids[index] || "";
+      const userId = firstCells[index]?.dataset.userId || "";
 
       person.addEventListener("mouseenter", () => {
-        highlightUser(roster, userId);
+        highlight(roster, userId);
       });
     });
 
@@ -45,11 +45,9 @@
       const cell = event.target.closest(".member-cell[data-user-id]");
       if (!cell || !roster.contains(cell)) return;
 
-      highlightUser(roster, cell.dataset.userId || "");
+      highlight(roster, cell.dataset.userId || "");
     });
 
-    roster.addEventListener("mouseleave", () => {
-      clearRoster(roster);
-    });
+    roster.addEventListener("mouseleave", () => clear(roster));
   });
 })();

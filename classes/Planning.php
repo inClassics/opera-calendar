@@ -10,16 +10,184 @@ class Planning
         $t = $to->format('Y-m-d');
         $rows = [];
 
-        // Keep the three source queries separate. This avoids UNION coercion /
-        // collation issues on older MySQL 5.7 installations and preserves the
-        // exact identity of each source row.
+        /*
+        |--------------------------------------------------------------------------
+        | Effective schedule
+        |--------------------------------------------------------------------------
+        |
+        | Planning must manage the same activities that Calendar displays.
+        |
+        | 1. A manual schedule_slot overrides imported calendar_events for the
+        |    same date + period.
+        | 2. Explicit split events replace the normal date/period representation.
+        | 3. Lydian-linked split rows keep the canonical calendar source identity
+        |    so assignments remain attached to the imported event.
+        |
+        | Nothing is deleted here. Hidden source rows stay in the database.
+        |
+        */
+
+        $manualSlots = [];
+        $splitPeriods = [];
+
         $stmt = $this->pdo->prepare("
             SELECT
-                'calendar' AS source_type,
-                ce.id AS source_id,
+                ss.id,
+                ss.schedule_date,
+                ss.period,
+                ss.activity,
+                ss.piece_id,
+                ss.required_basses_override,
+                ss.point_value,
+                ss.point_type,
+                p.title AS piece_title,
+                p.default_basses
+            FROM schedule_slots ss
+            LEFT JOIN pieces p ON p.id = ss.piece_id
+            WHERE ss.schedule_date BETWEEN ? AND ?
+            ORDER BY ss.schedule_date, ss.period, ss.id
+        ");
+        $stmt->execute([$f, $t]);
+
+        $slotRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($slotRows as $row) {
+            $manualSlots[$row['schedule_date']][$row['period']] = true;
+        }
+
+        $stmt = $this->pdo->prepare("
+            SELECT
+                se.id,
+                se.calendar_event_id,
+                se.schedule_date,
+                se.period,
+                se.activity,
+                se.activity_override,
+                se.sort_order,
+                se.piece_id,
+                se.required_basses_override,
+                se.point_value,
+                se.point_type,
+                p.title AS piece_title,
+                p.default_basses
+            FROM schedule_split_events se
+            LEFT JOIN pieces p ON p.id = se.piece_id
+            WHERE se.schedule_date BETWEEN ? AND ?
+            ORDER BY se.schedule_date, se.period, se.sort_order, se.id
+        ");
+        $stmt->execute([$f, $t]);
+
+        $splitRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($splitRows as $row) {
+            $splitPeriods[$row['schedule_date']][$row['period']] = true;
+        }
+
+        /*
+        | Split rows are the effective representation when a period is split.
+        | If linked to Lydian, use calendar/id as the assignment identity because
+        | that is the source already used by Calendar point metadata.
+        */
+        foreach ($splitRows as $row) {
+            $linkedCalendarId = !empty($row['calendar_event_id'])
+                ? (int)$row['calendar_event_id']
+                : null;
+
+            $pieceId = $row['piece_id'];
+            $pieceTitle = $row['piece_title'];
+            $defaultBasses = $row['default_basses'];
+            $requiredOverride = $row['required_basses_override'];
+            $pointValue = $row['point_value'];
+            $pointType = $row['point_type'];
+            $syncStatus = 'manual';
+
+            if ($linkedCalendarId) {
+                $calendar = $this->calendarEvent($linkedCalendarId);
+
+                if ($calendar) {
+                    // Piece/staffing metadata follows the canonical Lydian event
+                    // unless the split row already has an explicit value.
+                    if ($pieceId === null) {
+                        $pieceId = $calendar['piece_id'];
+                        $pieceTitle = $calendar['piece_title'];
+                        $defaultBasses = $calendar['default_basses'];
+                    }
+
+                    if ($requiredOverride === null) {
+                        $requiredOverride = $calendar['required_basses_override'];
+                    }
+
+                    if ((float)$pointValue === 0.0 && $pointType === null) {
+                        $pointValue = $calendar['point_value'];
+                        $pointType = $calendar['point_type'];
+                    }
+
+                    $syncStatus = $calendar['sync_status'];
+                }
+            }
+
+            $rows[] = [
+                'source_type' => $linkedCalendarId ? 'calendar' : 'split',
+                'source_id' => $linkedCalendarId ?: (int)$row['id'],
+                'split_event_id' => (int)$row['id'],
+                'schedule_date' => $row['schedule_date'],
+                'period' => $row['period'],
+                'activity_title' => trim((string)(
+                    $row['activity_override'] !== null && $row['activity_override'] !== ''
+                    ? $row['activity_override']
+                    : $row['activity']
+                )),
+                'start_local' => null,
+                'end_local' => null,
+                'piece_id' => $pieceId,
+                'required_basses_override' => $requiredOverride,
+                'point_value' => $pointValue,
+                'point_type' => $pointType,
+                'sync_status' => $syncStatus,
+                'piece_title' => $pieceTitle,
+                'default_basses' => $defaultBasses,
+                'availability_source' => 'split',
+                'availability_source_id' => (int)$row['id'],
+            ];
+        }
+
+        /*
+        | Normal manual slots only appear when that date/period is not split.
+        */
+        foreach ($slotRows as $row) {
+            if (!empty($splitPeriods[$row['schedule_date']][$row['period']])) {
+                continue;
+            }
+
+            $rows[] = [
+                'source_type' => 'slot',
+                'source_id' => (int)$row['id'],
+                'split_event_id' => null,
+                'schedule_date' => $row['schedule_date'],
+                'period' => $row['period'],
+                'activity_title' => $row['activity'],
+                'start_local' => null,
+                'end_local' => null,
+                'piece_id' => $row['piece_id'],
+                'required_basses_override' => $row['required_basses_override'],
+                'point_value' => $row['point_value'],
+                'point_type' => $row['point_type'],
+                'sync_status' => 'manual',
+                'piece_title' => $row['piece_title'],
+                'default_basses' => $row['default_basses'],
+                'availability_source' => 'normal',
+                'availability_source_id' => null,
+            ];
+        }
+
+        /*
+        | Imported Lydian events appear only if Calendar would also use the
+        | imported source for that date/period: no manual override and no split.
+        */
+        $stmt = $this->pdo->prepare("
+            SELECT
+                ce.id,
                 ce.schedule_date,
                 ce.period,
-                ce.summary AS activity_title,
+                ce.summary,
                 ce.start_local,
                 ce.end_local,
                 ce.piece_id,
@@ -32,59 +200,39 @@ class Planning
             FROM calendar_events ce
             LEFT JOIN pieces p ON p.id = ce.piece_id
             WHERE ce.schedule_date BETWEEN ? AND ?
+            ORDER BY ce.schedule_date, ce.period, ce.start_local, ce.id
         ");
         $stmt->execute([$f, $t]);
-        $rows = array_merge($rows, $stmt->fetchAll(PDO::FETCH_ASSOC));
 
-        $stmt = $this->pdo->prepare("
-            SELECT
-                'slot' AS source_type,
-                ss.id AS source_id,
-                ss.schedule_date,
-                ss.period,
-                ss.activity AS activity_title,
-                NULL AS start_local,
-                NULL AS end_local,
-                ss.piece_id,
-                ss.required_basses_override,
-                ss.point_value,
-                ss.point_type,
-                'manual' AS sync_status,
-                p.title AS piece_title,
-                p.default_basses
-            FROM schedule_slots ss
-            LEFT JOIN pieces p ON p.id = ss.piece_id
-            WHERE ss.schedule_date BETWEEN ? AND ?
-        ");
-        $stmt->execute([$f, $t]);
-        $rows = array_merge($rows, $stmt->fetchAll(PDO::FETCH_ASSOC));
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if (!empty($manualSlots[$row['schedule_date']][$row['period']])) {
+                continue;
+            }
 
-        // A split row linked to a Lydian calendar event is a display/split
-        // representation of that same imported event, so do not duplicate it
-        // as a second Planning activity.
-        $stmt = $this->pdo->prepare("
-            SELECT
-                'split' AS source_type,
-                se.id AS source_id,
-                se.schedule_date,
-                se.period,
-                COALESCE(NULLIF(se.activity_override, ''), se.activity) AS activity_title,
-                NULL AS start_local,
-                NULL AS end_local,
-                se.piece_id,
-                se.required_basses_override,
-                se.point_value,
-                se.point_type,
-                'manual' AS sync_status,
-                p.title AS piece_title,
-                p.default_basses
-            FROM schedule_split_events se
-            LEFT JOIN pieces p ON p.id = se.piece_id
-            WHERE se.calendar_event_id IS NULL
-              AND se.schedule_date BETWEEN ? AND ?
-        ");
-        $stmt->execute([$f, $t]);
-        $rows = array_merge($rows, $stmt->fetchAll(PDO::FETCH_ASSOC));
+            if (!empty($splitPeriods[$row['schedule_date']][$row['period']])) {
+                continue;
+            }
+
+            $rows[] = [
+                'source_type' => 'calendar',
+                'source_id' => (int)$row['id'],
+                'split_event_id' => null,
+                'schedule_date' => $row['schedule_date'],
+                'period' => $row['period'],
+                'activity_title' => $this->formatCalendarTitle($row),
+                'start_local' => $row['start_local'],
+                'end_local' => $row['end_local'],
+                'piece_id' => $row['piece_id'],
+                'required_basses_override' => $row['required_basses_override'],
+                'point_value' => $row['point_value'],
+                'point_type' => $row['point_type'],
+                'sync_status' => $row['sync_status'],
+                'piece_title' => $row['piece_title'],
+                'default_basses' => $row['default_basses'],
+                'availability_source' => 'normal',
+                'availability_source_id' => null,
+            ];
+        }
 
         usort($rows, static function (array $a, array $b): int {
             $date = strcmp((string)$a['schedule_date'], (string)$b['schedule_date']);
@@ -110,12 +258,15 @@ class Planning
             $source = (string)$r['source_type'];
             $id = (int)$r['source_id'];
 
-            $av = $source === 'split'
-                ? ($split[$id] ?? [])
-                : ($normal[$r['schedule_date']][$r['period']] ?? []);
+            if ($r['availability_source'] === 'split') {
+                $av = $split[(int)$r['availability_source_id']] ?? [];
+            } else {
+                $av = $normal[$r['schedule_date']][$r['period']] ?? [];
+            }
 
             $available = 0;
             $unavailable = 0;
+
             foreach ($av as $v) {
                 if (($v['status'] ?? '') === 'available') $available++;
                 if (($v['status'] ?? '') === 'unavailable') $unavailable++;
@@ -125,16 +276,14 @@ class Planning
             $r['unavailable_count'] = $unavailable;
             $r['assigned_user_ids'] = $assignments[$source][$id] ?? [];
             $r['assigned_count'] = count($r['assigned_user_ids']);
-
             $r['default_basses'] = $r['default_basses'] !== null
                 ? (int)$r['default_basses']
                 : null;
-
             $r['effective_required'] = $r['required_basses_override'] !== null
                 ? (int)$r['required_basses_override']
                 : $r['default_basses'];
 
-            // Backwards compatibility with the first Planning page.
+            // Existing planning.php uses title.
             $r['title'] = $r['activity_title'];
         }
         unset($r);
@@ -166,6 +315,36 @@ class Planning
     {
         $meta = $this->activityMeta($type, $id);
 
+        /*
+        | A canonical calendar event may currently be represented by a linked
+        | split event. In that case Planning must show split availability.
+        */
+        if ($type === 'calendar') {
+            $splitId = $this->linkedSplitId($id);
+
+            if ($splitId !== null) {
+                $stmt = $this->pdo->prepare("
+                    SELECT u.id, u.name, sa.status, sa.uncertain
+                    FROM users u
+                    LEFT JOIN split_availability sa
+                      ON sa.user_id = u.id
+                     AND sa.split_event_id = ?
+                    WHERE u.status = 1
+                    ORDER BY u.sort_order, u.name
+                ");
+                $stmt->execute([$splitId]);
+
+                return [
+                    'meta' => $meta,
+                    'members' => $this->decorateMembers(
+                        $stmt->fetchAll(PDO::FETCH_ASSOC),
+                        $type,
+                        $id
+                    ),
+                ];
+            }
+        }
+
         if ($type === 'split') {
             $stmt = $this->pdo->prepare("
                 SELECT u.id, u.name, sa.status, sa.uncertain
@@ -191,17 +370,14 @@ class Planning
             $stmt->execute([$meta['schedule_date'], $meta['period']]);
         }
 
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $assigned = $this->assignedUserIds($type, $id);
-
-        foreach ($rows as &$r) {
-            $r['status'] = !empty($r['status']) ? $r['status'] : 'unanswered';
-            $r['uncertain'] = (bool)($r['uncertain'] ?? 0);
-            $r['assigned'] = in_array((int)$r['id'], $assigned, true);
-        }
-        unset($r);
-
-        return ['meta' => $meta, 'members' => $rows];
+        return [
+            'meta' => $meta,
+            'members' => $this->decorateMembers(
+                $stmt->fetchAll(PDO::FETCH_ASSOC),
+                $type,
+                $id
+            ),
+        ];
     }
 
     public function setAssignment(
@@ -285,8 +461,6 @@ class Planning
 
     public function statistics(DateTime $from, DateTime $to): array
     {
-        // Calculate from current real assignments. Keep the SQL deliberately
-        // simple for MySQL 5.7 and avoid a derived UNION joined to assignments.
         $users = $this->pdo->query("
             SELECT id, name, position, multiplier, sort_order
             FROM users
@@ -295,6 +469,7 @@ class Planning
         ")->fetchAll(PDO::FETCH_ASSOC);
 
         $result = [];
+
         foreach ($users as $user) {
             $result[(int)$user['id']] = [
                 'id' => (int)$user['id'],
@@ -400,9 +575,13 @@ class Planning
             LIMIT 1
         ");
         $stmt->execute([$id]);
+
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$row) throw new RuntimeException('Activity not found.');
+        if (!$row) {
+            throw new RuntimeException('Activity not found.');
+        }
+
         return $row;
     }
 
@@ -412,21 +591,24 @@ class Planning
         int $userId,
         array $meta
     ): array {
-        if ($type === 'split') {
-            $stmt = $this->pdo->prepare("
-                SELECT status, uncertain
-                FROM split_availability
-                WHERE split_event_id = ? AND user_id = ?
-            ");
-            $stmt->execute([$id, $userId]);
-        } else {
-            $stmt = $this->pdo->prepare("
-                SELECT status, uncertain
-                FROM availability
-                WHERE schedule_date = ? AND period = ? AND user_id = ?
-            ");
-            $stmt->execute([$meta['schedule_date'], $meta['period'], $userId]);
+        if ($type === 'calendar') {
+            $splitId = $this->linkedSplitId($id);
+
+            if ($splitId !== null) {
+                return $this->splitPreference($splitId, $userId);
+            }
         }
+
+        if ($type === 'split') {
+            return $this->splitPreference($id, $userId);
+        }
+
+        $stmt = $this->pdo->prepare("
+            SELECT status, uncertain
+            FROM availability
+            WHERE schedule_date = ? AND period = ? AND user_id = ?
+        ");
+        $stmt->execute([$meta['schedule_date'], $meta['period'], $userId]);
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
@@ -434,6 +616,53 @@ class Planning
             'status' => !empty($row['status']) ? $row['status'] : 'unanswered',
             'uncertain' => (int)($row['uncertain'] ?? 0),
         ];
+    }
+
+    private function splitPreference(int $splitId, int $userId): array
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT status, uncertain
+            FROM split_availability
+            WHERE split_event_id = ? AND user_id = ?
+        ");
+        $stmt->execute([$splitId, $userId]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        return [
+            'status' => !empty($row['status']) ? $row['status'] : 'unanswered',
+            'uncertain' => (int)($row['uncertain'] ?? 0),
+        ];
+    }
+
+    private function linkedSplitId(int $calendarEventId): ?int
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT id
+            FROM schedule_split_events
+            WHERE calendar_event_id = ?
+            ORDER BY sort_order, id
+            LIMIT 1
+        ");
+        $stmt->execute([$calendarEventId]);
+
+        $id = $stmt->fetchColumn();
+
+        return $id !== false ? (int)$id : null;
+    }
+
+    private function decorateMembers(array $rows, string $type, int $id): array
+    {
+        $assigned = $this->assignedUserIds($type, $id);
+
+        foreach ($rows as &$r) {
+            $r['status'] = !empty($r['status']) ? $r['status'] : 'unanswered';
+            $r['uncertain'] = (bool)($r['uncertain'] ?? 0);
+            $r['assigned'] = in_array((int)$r['id'], $assigned, true);
+        }
+        unset($r);
+
+        return $rows;
     }
 
     private function assignedUserIds(string $type, int $id): array
@@ -474,9 +703,11 @@ class Planning
         $stmt->execute([$from->format('Y-m-d'), $to->format('Y-m-d')]);
 
         $result = [];
+
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $result[$row['schedule_date']][$row['period']][(int)$row['user_id']] = $row;
         }
+
         return $result;
     }
 
@@ -491,9 +722,51 @@ class Planning
         $stmt->execute([$from->format('Y-m-d'), $to->format('Y-m-d')]);
 
         $result = [];
+
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $result[(int)$row['split_event_id']][(int)$row['user_id']] = $row;
         }
+
         return $result;
+    }
+
+    private function calendarEvent(int $id): ?array
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT
+                ce.id,
+                ce.piece_id,
+                ce.required_basses_override,
+                ce.point_value,
+                ce.point_type,
+                ce.sync_status,
+                p.title AS piece_title,
+                p.default_basses
+            FROM calendar_events ce
+            LEFT JOIN pieces p ON p.id = ce.piece_id
+            WHERE ce.id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$id]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
+    private function formatCalendarTitle(array $row): string
+    {
+        $time = '';
+
+        if (!empty($row['start_local']) && !empty($row['end_local'])) {
+            $start = substr((string)$row['start_local'], 11, 5);
+            $end = substr((string)$row['end_local'], 11, 5);
+
+            if ($start !== '' && $end !== '') {
+                $time = $start . '–' . $end . ' ';
+            }
+        }
+
+        return trim($time . (string)$row['summary']);
     }
 }

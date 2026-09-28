@@ -1,0 +1,51 @@
+/*
+|--------------------------------------------------------------------------
+| Permanent desktop roster alignment
+|--------------------------------------------------------------------------
+|
+| The roster names have exactly one row per active member. Availability must
+| have exactly the same rows. The old 20px spacer was left over from an older
+| label row and shifted all availability down by one person.
+|
+*/
+
+.desktop-paper-event-marks {
+  grid-template-rows: repeat(var(--member-count), var(--person-row-height)) !important;
+}
+
+.desktop-paper-mark-spacer {
+  display: none !important;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Whole musician-row hover
+|--------------------------------------------------------------------------
+|
+| roster-hover.js applies this class to the name and all availability cells
+| for the same musician within the morning/evening weekly roster.
+|
+*/
+
+.desktop-paper-person.roster-row-hover,
+.desktop-paper-mark-wrap.roster-row-hover {
+  background-color: #fff3c7 !important;
+}
+
+.desktop-paper-person.current-user-desktop-row.roster-row-hover,
+.desktop-paper-mark-wrap.current-user-column.roster-row-hover {
+  background-color: #dcecff !important;
+}
+
+/* Preserve Monday's structural colour but still make hover visible. */
+.desktop-paper-roster-day.is-monday .desktop-paper-mark-wrap.roster-row-hover {
+  box-shadow: inset 0 0 0 2px rgba(71, 91, 45, 0.38);
+  background: transparent !important;
+}
+
+.desktop-paper-person,
+.desktop-paper-mark-wrap {
+  transition:
+    background-color 80ms ease,
+    box-shadow 80ms ease;
+}

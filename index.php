@@ -83,17 +83,6 @@ $activityPointItems = $scheduleRepository->activityPointItemsForMonth(
     $context['lastDay']
 );
 
-/*
-|--------------------------------------------------------------------------
-| Actual work assignments
-|--------------------------------------------------------------------------
-|
-| Availability and assignment are deliberately separate:
-|   × / • / ? = musician preference
-|   Scheduled marker = actual assignment made in Planning
-|
-*/
-
 $assignments = [];
 
 try {
@@ -102,7 +91,7 @@ try {
         $context['lastDay']
     );
 } catch (Throwable $e) {
-    // Calendar remains usable if the Planning migration is unavailable.
+    // Calendar remains usable if Planning tables are unavailable.
 }
 
 $today = new DateTime('today');
@@ -196,6 +185,7 @@ $csrf = csrf_token();
     <link rel="stylesheet" href="assets/css/point-counting.css">
     <link rel="stylesheet" href="assets/css/schedule-changes.css">
     <link rel="stylesheet" href="assets/css/assignments.css">
+    <link rel="stylesheet" href="assets/css/roster-fix.css">
 </head>
 
 <body>
@@ -312,6 +302,7 @@ $csrf = csrf_token();
     <script src="assets/js/activity-points.js"></script>
     <script src="assets/js/schedule-changes.js"></script>
     <script src="assets/js/assignments.js"></script>
+    <script src="assets/js/roster-hover.js"></script>
 
 </body>
 
