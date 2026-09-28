@@ -211,20 +211,14 @@ document.addEventListener("DOMContentLoaded", () => {
   pieceSelect.addEventListener("change", updatePieceDefault);
 
   const loadPieceData = async () => {
-    const params = new URLSearchParams({
+    /*
+     * ajax/_bootstrap.php requires a POST CSRF token for every AJAX request.
+     * Use the shared App.post() helper so the token is included automatically.
+     */
+    const result = await App.post("ajax/activity-piece-data.php", {
       source_type: activeSourceType,
       source_id: activeSourceId,
     });
-
-    const response = await fetch(`ajax/activity-piece-data.php?${params.toString()}`, {
-      credentials: "same-origin",
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Could not load piece information.");
-    }
 
     populatePieceOptions(result.pieces || [], result.piece_id);
     requiredBassesInput.value = result.required_basses_override == null ? "" : String(result.required_basses_override);

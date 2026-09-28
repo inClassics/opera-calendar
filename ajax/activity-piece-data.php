@@ -4,8 +4,8 @@ require_once __DIR__ . '/_bootstrap.php';
 
 ajax_require_admin();
 
-$sourceType = trim((string) ($_GET['source_type'] ?? ''));
-$sourceId = (int) ($_GET['source_id'] ?? 0);
+$sourceType = trim((string) ($_POST['source_type'] ?? ''));
+$sourceId = (int) ($_POST['source_id'] ?? 0);
 
 $tableMap = [
     'calendar' => 'calendar_events',
