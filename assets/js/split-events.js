@@ -98,9 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
     closeSplitMenu();
   };
 
-  const rawActivity = (cell) =>
-    cell.dataset.activityRaw
-    || cell.textContent.replace(/\s+/g, " ").trim();
+  const rawActivity = (cell) => cell.dataset.activityRaw || cell.textContent.replace(/\s+/g, " ").trim();
 
   /*
   |--------------------------------------------------------------------------
@@ -137,15 +135,9 @@ document.addEventListener("DOMContentLoaded", () => {
       */
       button.disabled = count < 2 && lines.length < 2;
 
-      button.title = button.disabled
-        ? "This slot contains only one event."
-        : "";
+      button.title = button.disabled ? "This slot contains only one event." : "";
 
-      App.positionFloating(
-        activityMenu,
-        event.clientX,
-        event.clientY
-      );
+      App.positionFloating(activityMenu, event.clientX, event.clientY);
     });
   });
 
@@ -167,11 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
       closeActivityMenu();
       activeSplitActivity = cell;
 
-      App.positionFloating(
-        splitMenu,
-        event.clientX,
-        event.clientY
-      );
+      App.positionFloating(splitMenu, event.clientX, event.clientY);
     });
   });
 
@@ -184,20 +172,13 @@ document.addEventListener("DOMContentLoaded", () => {
   activityMenu.addEventListener("click", async (event) => {
     const button = event.target.closest('[data-action="split"]');
 
-    if (
-      !button
-      || button.disabled
-      || !activeActivity
-      || !App.isEditing()
-    ) {
+    if (!button || button.disabled || !activeActivity || !App.isEditing()) {
       return;
     }
 
     const cell = activeActivity;
 
-    const confirmed = confirm(
-      "Split this slot into separate events? Existing availability will be copied to each event."
-    );
+    const confirmed = confirm("Split this slot into separate events? Existing availability will be copied to each event.");
 
     if (!confirmed) {
       return;
@@ -228,11 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
   splitMenu.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-action]");
 
-    if (
-      !button
-      || !activeSplitActivity
-      || !App.isEditing()
-    ) {
+    if (!button || !activeSplitActivity || !App.isEditing()) {
       return;
     }
 
@@ -272,11 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (action === "delete") {
-      if (
-        !confirm(
-          "Delete this split event? Its individual availability will also be deleted."
-        )
-      ) {
+      if (!confirm("Delete this split event? Its individual availability will also be deleted.")) {
         return;
       }
 
@@ -294,11 +267,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (action === "merge") {
-      if (
-        !confirm(
-          "Merge all events in this slot back into one activity?"
-        )
-      ) {
+      if (!confirm("Merge all events in this slot back into one activity?")) {
         return;
       }
 
@@ -310,18 +279,15 @@ document.addEventListener("DOMContentLoaded", () => {
             force: 0,
           });
         } catch (error) {
-          if (
-            error.status !== 409
-            || !error.payload?.needs_confirmation
-          ) {
+          if (error.status !== 409 || !error.payload?.needs_confirmation) {
             throw error;
           }
 
           const count = Number(error.payload.conflict_count || 0);
 
           const proceed = confirm(
-            `${count} member(s) have different availability between these events.\n\n`
-            + "If you continue, conflicting answers will become blank in the merged slot. Continue?"
+            `${count} member(s) have different availability between these events.\n\n` +
+              "If you continue, conflicting answers will become blank in the merged slot. Continue?",
           );
 
           if (!proceed) {
@@ -343,17 +309,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.addEventListener("click", (event) => {
-    if (
-      !activityMenu.hidden
-      && !activityMenu.contains(event.target)
-    ) {
+    if (!activityMenu.hidden && !activityMenu.contains(event.target)) {
       closeActivityMenu();
     }
 
-    if (
-      !splitMenu.hidden
-      && !splitMenu.contains(event.target)
-    ) {
+    if (!splitMenu.hidden && !splitMenu.contains(event.target)) {
       closeSplitMenu();
     }
   });

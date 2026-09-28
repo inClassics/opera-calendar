@@ -6,9 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  const cells = document.querySelectorAll(
-    ".availability-cell, .split-availability-cell"
-  );
+  const cells = document.querySelectorAll(".availability-cell, .split-availability-cell");
 
   /*
   |--------------------------------------------------------------------------
@@ -17,61 +15,34 @@ document.addEventListener("DOMContentLoaded", () => {
   */
 
   const renderAvailability = (cell) => {
-    const status =
-      cell.dataset.status || "";
+    const status = cell.dataset.status || "";
 
-    const uncertain =
-      cell.dataset.uncertain === "1";
+    const uncertain = cell.dataset.uncertain === "1";
 
-    const countsForPoints =
-      cell.dataset.countsForPoints !== "0";
+    const countsForPoints = cell.dataset.countsForPoints !== "0";
 
-    cell.classList.remove(
-      "available",
-      "unavailable",
-      "uncertain",
-      "no-points"
-    );
+    cell.classList.remove("available", "unavailable", "uncertain", "no-points");
 
     cell.textContent = "";
 
     if (status === "available") {
       if (countsForPoints) {
-        cell.textContent =
-          uncertain
-            ? "×?"
-            : "×";
+        cell.textContent = uncertain ? "×?" : "×";
       } else {
-        cell.textContent =
-          uncertain
-            ? "×⁰?"
-            : "×⁰";
+        cell.textContent = uncertain ? "×⁰?" : "×⁰";
 
-        cell.classList.add(
-          "no-points"
-        );
+        cell.classList.add("no-points");
       }
 
-      cell.classList.add(
-        "available"
-      );
-    } else if (
-      status === "unavailable"
-    ) {
-      cell.textContent =
-        uncertain
-          ? "•?"
-          : "•";
+      cell.classList.add("available");
+    } else if (status === "unavailable") {
+      cell.textContent = uncertain ? "•?" : "•";
 
-      cell.classList.add(
-        "unavailable"
-      );
+      cell.classList.add("unavailable");
     }
 
     if (uncertain) {
-      cell.classList.add(
-        "uncertain"
-      );
+      cell.classList.add("uncertain");
     }
   };
 
@@ -81,21 +52,13 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   */
 
-  cells.forEach(
-    (cell) => {
-      if (
-        typeof cell.dataset.countsForPoints
-        === "undefined"
-      ) {
-        cell.dataset.countsForPoints =
-          "1";
-      }
-
-      renderAvailability(
-        cell
-      );
+  cells.forEach((cell) => {
+    if (typeof cell.dataset.countsForPoints === "undefined") {
+      cell.dataset.countsForPoints = "1";
     }
-  );
+
+    renderAvailability(cell);
+  });
 
   /*
   |--------------------------------------------------------------------------
@@ -103,16 +66,11 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   */
 
-  const menu =
-    document.createElement(
-      "div"
-    );
+  const menu = document.createElement("div");
 
-  menu.className =
-    "cell-options-menu";
+  menu.className = "cell-options-menu";
 
-  menu.hidden =
-    true;
+  menu.hidden = true;
 
   menu.innerHTML = `
     <div class="cell-options-title">
@@ -148,27 +106,17 @@ document.addEventListener("DOMContentLoaded", () => {
     </button>
   `;
 
-  document.body.appendChild(
-    menu
-  );
+  document.body.appendChild(menu);
 
-  let activeCell =
-    null;
+  let activeCell = null;
 
-  const closeMenu =
-    () => {
-      menu.hidden =
-        true;
+  const closeMenu = () => {
+    menu.hidden = true;
 
-      activeCell =
-        null;
-    };
+    activeCell = null;
+  };
 
-  const isSplitCell =
-    (cell) =>
-      cell.classList.contains(
-        "split-availability-cell"
-      );
+  const isSplitCell = (cell) => cell.classList.contains("split-availability-cell");
 
   /*
   |--------------------------------------------------------------------------
@@ -176,40 +124,24 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   */
 
-  const saveStatus =
-    async (
-      cell,
-      nextStatus
-    ) => {
-      if (
-        cell.dataset.saving
-        === "1"
-      ) {
-        return false;
-      }
+  const saveStatus = async (cell, nextStatus) => {
+    if (cell.dataset.saving === "1") {
+      return false;
+    }
 
-      const previousStatus =
-        cell.dataset.status || "";
+    const previousStatus = cell.dataset.status || "";
 
-      const previousUncertain =
-        cell.dataset.uncertain
-        === "1";
+    const previousUncertain = cell.dataset.uncertain === "1";
 
-      const previousCountsForPoints =
-        cell.dataset.countsForPoints
-        !== "0";
+    const previousCountsForPoints = cell.dataset.countsForPoints !== "0";
 
-      cell.dataset.status =
-        nextStatus;
+    cell.dataset.status = nextStatus;
 
-      if (
-        nextStatus === ""
-      ) {
-        cell.dataset.uncertain =
-          "0";
-      }
+    if (nextStatus === "") {
+      cell.dataset.uncertain = "0";
+    }
 
-      /*
+    /*
       |--------------------------------------------------------------------------
       | New crosses count by default
       |--------------------------------------------------------------------------
@@ -218,91 +150,52 @@ document.addEventListener("DOMContentLoaded", () => {
       |
       */
 
-      if (
-        nextStatus === "available"
-        &&
-        previousStatus !== "available"
-      ) {
-        cell.dataset.countsForPoints =
-          "1";
+    if (nextStatus === "available" && previousStatus !== "available") {
+      cell.dataset.countsForPoints = "1";
+    }
+
+    renderAvailability(cell);
+
+    cell.dataset.saving = "1";
+
+    try {
+      if (isSplitCell(cell)) {
+        await App.post("ajax/update-split-availability.php", {
+          split_event_id: cell.dataset.splitEventId,
+
+          user_id: cell.dataset.userId,
+
+          status: nextStatus,
+        });
+      } else {
+        await App.post("ajax/update-availability.php", {
+          user_id: cell.dataset.userId,
+
+          date: cell.dataset.date,
+
+          period: cell.dataset.period,
+
+          status: nextStatus,
+        });
       }
 
-      renderAvailability(
-        cell
-      );
+      return true;
+    } catch (error) {
+      cell.dataset.status = previousStatus;
 
-      cell.dataset.saving =
-        "1";
+      cell.dataset.uncertain = previousUncertain ? "1" : "0";
 
-      try {
-        if (
-          isSplitCell(
-            cell
-          )
-        ) {
-          await App.post(
-            "ajax/update-split-availability.php",
-            {
-              split_event_id:
-                cell.dataset.splitEventId,
+      cell.dataset.countsForPoints = previousCountsForPoints ? "1" : "0";
 
-              user_id:
-                cell.dataset.userId,
+      renderAvailability(cell);
 
-              status:
-                nextStatus,
-            }
-          );
-        } else {
-          await App.post(
-            "ajax/update-availability.php",
-            {
-              user_id:
-                cell.dataset.userId,
+      alert(error.message);
 
-              date:
-                cell.dataset.date,
-
-              period:
-                cell.dataset.period,
-
-              status:
-                nextStatus,
-            }
-          );
-        }
-
-        return true;
-
-      } catch (error) {
-        cell.dataset.status =
-          previousStatus;
-
-        cell.dataset.uncertain =
-          previousUncertain
-            ? "1"
-            : "0";
-
-        cell.dataset.countsForPoints =
-          previousCountsForPoints
-            ? "1"
-            : "0";
-
-        renderAvailability(
-          cell
-        );
-
-        alert(
-          error.message
-        );
-
-        return false;
-
-      } finally {
-        cell.dataset.saving =
-          "0";
-      }
-    };
+      return false;
+    } finally {
+      cell.dataset.saving = "0";
+    }
+  };
 
   /*
   |--------------------------------------------------------------------------
@@ -310,99 +203,53 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   */
 
-  const saveUncertain =
-    async (
-      cell,
-      nextUncertain
-    ) => {
-      if (
-        cell.dataset.saving
-        === "1"
-      ) {
-        return false;
+  const saveUncertain = async (cell, nextUncertain) => {
+    if (cell.dataset.saving === "1") {
+      return false;
+    }
+
+    const previousUncertain = cell.dataset.uncertain === "1";
+
+    cell.dataset.uncertain = nextUncertain ? "1" : "0";
+
+    renderAvailability(cell);
+
+    cell.dataset.saving = "1";
+
+    try {
+      if (isSplitCell(cell)) {
+        await App.post("ajax/toggle-split-uncertain.php", {
+          split_event_id: cell.dataset.splitEventId,
+
+          user_id: cell.dataset.userId,
+
+          uncertain: nextUncertain ? 1 : 0,
+        });
+      } else {
+        await App.post("ajax/toggle-uncertain.php", {
+          user_id: cell.dataset.userId,
+
+          date: cell.dataset.date,
+
+          period: cell.dataset.period,
+
+          uncertain: nextUncertain ? 1 : 0,
+        });
       }
 
-      const previousUncertain =
-        cell.dataset.uncertain
-        === "1";
+      return true;
+    } catch (error) {
+      cell.dataset.uncertain = previousUncertain ? "1" : "0";
 
-      cell.dataset.uncertain =
-        nextUncertain
-          ? "1"
-          : "0";
+      renderAvailability(cell);
 
-      renderAvailability(
-        cell
-      );
+      alert(error.message);
 
-      cell.dataset.saving =
-        "1";
-
-      try {
-        if (
-          isSplitCell(
-            cell
-          )
-        ) {
-          await App.post(
-            "ajax/toggle-split-uncertain.php",
-            {
-              split_event_id:
-                cell.dataset.splitEventId,
-
-              user_id:
-                cell.dataset.userId,
-
-              uncertain:
-                nextUncertain
-                  ? 1
-                  : 0,
-            }
-          );
-        } else {
-          await App.post(
-            "ajax/toggle-uncertain.php",
-            {
-              user_id:
-                cell.dataset.userId,
-
-              date:
-                cell.dataset.date,
-
-              period:
-                cell.dataset.period,
-
-              uncertain:
-                nextUncertain
-                  ? 1
-                  : 0,
-            }
-          );
-        }
-
-        return true;
-
-      } catch (error) {
-        cell.dataset.uncertain =
-          previousUncertain
-            ? "1"
-            : "0";
-
-        renderAvailability(
-          cell
-        );
-
-        alert(
-          error.message
-        );
-
-        return false;
-
-      } finally {
-        cell.dataset.saving =
-          "0";
-      }
-    };
+      return false;
+    } finally {
+      cell.dataset.saving = "0";
+    }
+  };
 
   /*
   |--------------------------------------------------------------------------
@@ -410,105 +257,57 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   */
 
-  const savePointCounting =
-    async (
-      cell,
-      countsForPoints
-    ) => {
-      if (
-        cell.dataset.saving
-        === "1"
-      ) {
-        return false;
+  const savePointCounting = async (cell, countsForPoints) => {
+    if (cell.dataset.saving === "1") {
+      return false;
+    }
+
+    const previous = cell.dataset.countsForPoints !== "0";
+
+    cell.dataset.countsForPoints = countsForPoints ? "1" : "0";
+
+    renderAvailability(cell);
+
+    cell.dataset.saving = "1";
+
+    try {
+      if (isSplitCell(cell)) {
+        await App.post("ajax/update-point-counting.php", {
+          scope: "split",
+
+          split_event_id: cell.dataset.splitEventId,
+
+          user_id: cell.dataset.userId,
+
+          counts_for_points: countsForPoints ? 1 : 0,
+        });
+      } else {
+        await App.post("ajax/update-point-counting.php", {
+          scope: "normal",
+
+          user_id: cell.dataset.userId,
+
+          date: cell.dataset.date,
+
+          period: cell.dataset.period,
+
+          counts_for_points: countsForPoints ? 1 : 0,
+        });
       }
 
-      const previous =
-        cell.dataset.countsForPoints
-        !== "0";
+      return true;
+    } catch (error) {
+      cell.dataset.countsForPoints = previous ? "1" : "0";
 
-      cell.dataset.countsForPoints =
-        countsForPoints
-          ? "1"
-          : "0";
+      renderAvailability(cell);
 
-      renderAvailability(
-        cell
-      );
+      alert(error.message);
 
-      cell.dataset.saving =
-        "1";
-
-      try {
-        if (
-          isSplitCell(
-            cell
-          )
-        ) {
-          await App.post(
-            "ajax/update-point-counting.php",
-            {
-              scope:
-                "split",
-
-              split_event_id:
-                cell.dataset.splitEventId,
-
-              user_id:
-                cell.dataset.userId,
-
-              counts_for_points:
-                countsForPoints
-                  ? 1
-                  : 0,
-            }
-          );
-        } else {
-          await App.post(
-            "ajax/update-point-counting.php",
-            {
-              scope:
-                "normal",
-
-              user_id:
-                cell.dataset.userId,
-
-              date:
-                cell.dataset.date,
-
-              period:
-                cell.dataset.period,
-
-              counts_for_points:
-                countsForPoints
-                  ? 1
-                  : 0,
-            }
-          );
-        }
-
-        return true;
-
-      } catch (error) {
-        cell.dataset.countsForPoints =
-          previous
-            ? "1"
-            : "0";
-
-        renderAvailability(
-          cell
-        );
-
-        alert(
-          error.message
-        );
-
-        return false;
-
-      } finally {
-        cell.dataset.saving =
-          "0";
-      }
-    };
+      return false;
+    } finally {
+      cell.dataset.saving = "0";
+    }
+  };
 
   /*
   |--------------------------------------------------------------------------
@@ -516,91 +315,43 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   */
 
-  const openMenu =
-    (
-      cell,
-      x,
-      y
-    ) => {
-      activeCell =
-        cell;
+  const openMenu = (cell, x, y) => {
+    activeCell = cell;
 
-      const status =
-        cell.dataset.status
-        || "";
+    const status = cell.dataset.status || "";
 
-      const uncertain =
-        cell.dataset.uncertain
-        === "1";
+    const uncertain = cell.dataset.uncertain === "1";
 
-      const countsForPoints =
-        cell.dataset.countsForPoints
-        !== "0";
+    const countsForPoints = cell.dataset.countsForPoints !== "0";
 
-      const uncertainButton =
-        menu.querySelector(
-          '[data-action="uncertain"]'
-        );
+    const uncertainButton = menu.querySelector('[data-action="uncertain"]');
 
-      const noPointsButton =
-        menu.querySelector(
-          '[data-action="no-points"]'
-        );
+    const noPointsButton = menu.querySelector('[data-action="no-points"]');
 
-      const clearButton =
-        menu.querySelector(
-          '[data-action="clear"]'
-        );
+    const clearButton = menu.querySelector('[data-action="clear"]');
 
-      uncertainButton.disabled =
-        status === "";
+    uncertainButton.disabled = status === "";
 
-      uncertainButton.classList.toggle(
-        "selected",
-        uncertain
-      );
+    uncertainButton.classList.toggle("selected", uncertain);
 
-      uncertainButton
-        .querySelector(
-          ".cell-options-check"
-        )
-        .textContent =
-          uncertain
-            ? "✓"
-            : "";
+    uncertainButton.querySelector(".cell-options-check").textContent = uncertain ? "✓" : "";
 
-      /*
+    /*
       |--------------------------------------------------------------------------
       | Point exclusion only makes sense for a cross
       |--------------------------------------------------------------------------
       */
 
-      noPointsButton.disabled =
-        status !== "available";
+    noPointsButton.disabled = status !== "available";
 
-      noPointsButton.classList.toggle(
-        "selected",
-        !countsForPoints
-      );
+    noPointsButton.classList.toggle("selected", !countsForPoints);
 
-      noPointsButton
-        .querySelector(
-          ".cell-options-check"
-        )
-        .textContent =
-          !countsForPoints
-            ? "✓"
-            : "";
+    noPointsButton.querySelector(".cell-options-check").textContent = !countsForPoints ? "✓" : "";
 
-      clearButton.disabled =
-        status === "";
+    clearButton.disabled = status === "";
 
-      App.positionFloating(
-        menu,
-        x,
-        y
-      );
-    };
+    App.positionFloating(menu, x, y);
+  };
 
   /*
   |--------------------------------------------------------------------------
@@ -608,72 +359,36 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   */
 
-  cells.forEach(
-    (cell) => {
-      if (
-        !cell.classList.contains(
-          "editable"
-        )
-      ) {
+  cells.forEach((cell) => {
+    if (!cell.classList.contains("editable")) {
+      return;
+    }
+
+    cell.addEventListener("click", async () => {
+      if (!App.isEditing() || cell.dataset.saving === "1") {
         return;
       }
 
-      cell.addEventListener(
-        "click",
-        async () => {
-          if (
-            !App.isEditing()
-            ||
-            cell.dataset.saving
-            === "1"
-          ) {
-            return;
-          }
+      closeMenu();
 
-          closeMenu();
+      const current = cell.dataset.status || "";
 
-          const current =
-            cell.dataset.status
-            || "";
+      const next = current === "" ? "available" : current === "available" ? "unavailable" : "";
 
-          const next =
-            current === ""
-              ? "available"
-              : current === "available"
-                ? "unavailable"
-                : "";
+      await saveStatus(cell, next);
+    });
 
-          await saveStatus(
-            cell,
-            next
-          );
-        }
-      );
+    cell.addEventListener("contextmenu", (event) => {
+      if (!App.isEditing() || cell.dataset.saving === "1") {
+        return;
+      }
 
-      cell.addEventListener(
-        "contextmenu",
-        (event) => {
-          if (
-            !App.isEditing()
-            ||
-            cell.dataset.saving
-            === "1"
-          ) {
-            return;
-          }
+      event.preventDefault();
+      event.stopPropagation();
 
-          event.preventDefault();
-          event.stopPropagation();
-
-          openMenu(
-            cell,
-            event.clientX,
-            event.clientY
-          );
-        }
-      );
-    }
-  );
+      openMenu(cell, event.clientX, event.clientY);
+    });
+  });
 
   /*
   |--------------------------------------------------------------------------
@@ -681,53 +396,28 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   */
 
-  document
-    .querySelectorAll(
-      ".mobile-options-button"
-    )
-    .forEach(
-      (button) => {
-        button.addEventListener(
-          "click",
-          (event) => {
-            event.preventDefault();
-            event.stopPropagation();
+  document.querySelectorAll(".mobile-options-button").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
 
-            if (
-              !App.isEditing()
-            ) {
-              return;
-            }
-
-            const row =
-              button.closest(
-                ".mobile-member-row"
-              );
-
-            const cell =
-              row?.querySelector(
-                ".availability-cell.editable, .split-availability-cell.editable"
-              );
-
-            if (!cell) {
-              return;
-            }
-
-            const rect =
-              button.getBoundingClientRect();
-
-            openMenu(
-              cell,
-              rect.left,
-              Math.min(
-                rect.bottom + 4,
-                window.innerHeight - 8
-              )
-            );
-          }
-        );
+      if (!App.isEditing()) {
+        return;
       }
-    );
+
+      const row = button.closest(".mobile-member-row");
+
+      const cell = row?.querySelector(".availability-cell.editable, .split-availability-cell.editable");
+
+      if (!cell) {
+        return;
+      }
+
+      const rect = button.getBoundingClientRect();
+
+      openMenu(cell, rect.left, Math.min(rect.bottom + 4, window.innerHeight - 8));
+    });
+  });
 
   /*
   |--------------------------------------------------------------------------
@@ -735,85 +425,45 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   */
 
-  menu.addEventListener(
-    "click",
-    async (event) => {
-      const button =
-        event.target.closest(
-          "[data-action]"
-        );
+  menu.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-action]");
 
-      if (
-        !button
-        ||
-        button.disabled
-        ||
-        !activeCell
-        ||
-        !App.isEditing()
-      ) {
-        return;
-      }
-
-      const cell =
-        activeCell;
-
-      const action =
-        button.dataset.action;
-
-      if (
-        action === "uncertain"
-      ) {
-        await saveUncertain(
-          cell,
-          cell.dataset.uncertain
-          !== "1"
-        );
-
-        closeMenu();
-
-        return;
-      }
-
-      if (
-        action === "no-points"
-      ) {
-        if (
-          (
-            cell.dataset.status
-            || ""
-          )
-          !== "available"
-        ) {
-          return;
-        }
-
-        const currentlyCounts =
-          cell.dataset.countsForPoints
-          !== "0";
-
-        await savePointCounting(
-          cell,
-          !currentlyCounts
-        );
-
-        closeMenu();
-
-        return;
-      }
-
-      if (
-        action === "clear"
-      ) {
-        await saveStatus(
-          cell,
-          ""
-        );
-
-        closeMenu();
-      }
+    if (!button || button.disabled || !activeCell || !App.isEditing()) {
+      return;
     }
-  );
+
+    const cell = activeCell;
+
+    const action = button.dataset.action;
+
+    if (action === "uncertain") {
+      await saveUncertain(cell, cell.dataset.uncertain !== "1");
+
+      closeMenu();
+
+      return;
+    }
+
+    if (action === "no-points") {
+      if ((cell.dataset.status || "") !== "available") {
+        return;
+      }
+
+      const currentlyCounts = cell.dataset.countsForPoints !== "0";
+
+      await savePointCounting(cell, !currentlyCounts);
+
+      closeMenu();
+
+      return;
+    }
+
+    if (action === "clear") {
+      await saveStatus(cell, "");
+
+      closeMenu();
+    }
+  });
 
   /*
   |--------------------------------------------------------------------------
@@ -821,49 +471,25 @@ document.addEventListener("DOMContentLoaded", () => {
   |--------------------------------------------------------------------------
   */
 
-  document.addEventListener(
-    "click",
-    (event) => {
-      if (
-        !menu.hidden
-        &&
-        !menu.contains(
-          event.target
-        )
-      ) {
-        closeMenu();
-      }
+  document.addEventListener("click", (event) => {
+    if (!menu.hidden && !menu.contains(event.target)) {
+      closeMenu();
     }
-  );
+  });
 
-  document.addEventListener(
-    "keydown",
-    (event) => {
-      if (
-        event.key
-        === "Escape"
-      ) {
-        closeMenu();
-      }
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
     }
-  );
+  });
 
-  window.addEventListener(
-    "scroll",
-    closeMenu,
-    true
-  );
+  window.addEventListener("scroll", closeMenu, true);
 
-  window.addEventListener(
-    "resize",
-    closeMenu
-  );
+  window.addEventListener("resize", closeMenu);
 
-  App.onEditingChange(
-    (editing) => {
-      if (!editing) {
-        closeMenu();
-      }
+  App.onEditingChange((editing) => {
+    if (!editing) {
+      closeMenu();
     }
-  );
+  });
 });

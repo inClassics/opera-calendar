@@ -214,11 +214,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const clone = cell.cloneNode(true);
 
-    clone
-      .querySelectorAll(
-        ".activity-point-editor, .desktop-paper-point-badge"
-      )
-      .forEach((element) => element.remove());
+    clone.querySelectorAll(".activity-point-editor, .desktop-paper-point-badge").forEach((element) => element.remove());
 
     return clone.textContent.replace(/\s+/g, " ").trim();
   };
@@ -247,14 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const period = cell.dataset.period || "";
     const date = cell.dataset.date || "";
 
-    meta.textContent = [
-      date,
-      period
-        ? period.charAt(0).toUpperCase() + period.slice(1)
-        : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
+    meta.textContent = [date, period ? period.charAt(0).toUpperCase() + period.slice(1) : ""].filter(Boolean).join(" · ");
 
     overlay.hidden = false;
     document.body.classList.add("activity-editor-open");
@@ -269,53 +258,39 @@ document.addEventListener("DOMContentLoaded", () => {
   */
   App.openActivityEditor = openEditor;
 
-  document
-    .querySelectorAll(".activity-editable, .split-activity-cell")
-    .forEach((cell) => {
-      cell.addEventListener("click", (event) => {
-        if (!App.isEditing()) {
-          return;
-        }
+  document.querySelectorAll(".activity-editable, .split-activity-cell").forEach((cell) => {
+    cell.addEventListener("click", (event) => {
+      if (!App.isEditing()) {
+        return;
+      }
 
-        if (
-          event.target.closest(
-            ".activity-point-editor, .desktop-paper-point-badge"
-          )
-        ) {
-          return;
-        }
+      if (event.target.closest(".activity-point-editor, .desktop-paper-point-badge")) {
+        return;
+      }
 
-        event.preventDefault();
-        event.stopPropagation();
+      event.preventDefault();
+      event.stopPropagation();
 
-        openEditor(cell);
-      });
+      openEditor(cell);
     });
+  });
 
-  overlay
-    .querySelectorAll(".activity-editor-tool[data-command]")
-    .forEach((button) => {
-      button.addEventListener("mousedown", (event) => {
-        /*
+  overlay.querySelectorAll(".activity-editor-tool[data-command]").forEach((button) => {
+    button.addEventListener("mousedown", (event) => {
+      /*
         | Preserve the text selection when toolbar buttons are pressed.
         */
-        event.preventDefault();
-      });
-
-      button.addEventListener("click", () => {
-        editor.focus();
-
-        document.execCommand(
-          button.dataset.command,
-          false,
-          null
-        );
-      });
+      event.preventDefault();
     });
 
-  const clearFormat = overlay.querySelector(
-    ".activity-editor-clear-format"
-  );
+    button.addEventListener("click", () => {
+      editor.focus();
+
+      document.execCommand(button.dataset.command, false, null);
+    });
+  });
+
+  const clearFormat = overlay.querySelector(".activity-editor-clear-format");
 
   clearFormat.addEventListener("mousedown", (event) => {
     event.preventDefault();
@@ -332,8 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
     */
     event.preventDefault();
 
-    const text =
-      event.clipboardData?.getData("text/plain") || "";
+    const text = event.clipboardData?.getData("text/plain") || "";
 
     document.execCommand("insertText", false, text);
   });
@@ -346,9 +320,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const activity = htmlToMarkup(editor);
 
     if (activity === "") {
-      const confirmed = confirm(
-        "The activity is empty. Save it as an empty slot?"
-      );
+      const confirmed = confirm("The activity is empty. Save it as an empty slot?");
 
       if (!confirmed) {
         return;
@@ -356,9 +328,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (activity.length > 255) {
-      alert(
-        "Activity is too long. Maximum is 255 characters including formatting."
-      );
+      alert("Activity is too long. Maximum is 255 characters including formatting.");
       return;
     }
 
@@ -413,10 +383,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (
-      event.key === "Enter"
-      && (event.metaKey || event.ctrlKey)
-    ) {
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       saveButton.click();
     }

@@ -19,7 +19,7 @@
     document.dispatchEvent(
       new CustomEvent("schedule:editing-changed", {
         detail: { editing },
-      })
+      }),
     );
   };
 
@@ -53,9 +53,7 @@
     }
 
     if (!response.ok || !result.success) {
-      const error = new Error(
-        result.message || `Request failed (${response.status}).`
-      );
+      const error = new Error(result.message || `Request failed (${response.status}).`);
 
       error.status = response.status;
       error.payload = result;
@@ -93,15 +91,9 @@
 
     const rect = element.getBoundingClientRect();
 
-    const left = Math.max(
-      padding,
-      Math.min(x, window.innerWidth - rect.width - padding)
-    );
+    const left = Math.max(padding, Math.min(x, window.innerWidth - rect.width - padding));
 
-    const top = Math.max(
-      padding,
-      Math.min(y, window.innerHeight - rect.height - padding)
-    );
+    const top = Math.max(padding, Math.min(y, window.innerHeight - rect.height - padding));
 
     element.style.left = `${left}px`;
     element.style.top = `${top}px`;

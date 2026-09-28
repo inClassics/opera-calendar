@@ -53,7 +53,6 @@ body.editing-mode .activity-editable::after {
   }
 }
 
-
 body.editing-mode .split-activity-cell {
   cursor: context-menu;
 }

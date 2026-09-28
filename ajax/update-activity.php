@@ -108,11 +108,11 @@ if (
         'Schedule activity changed',
         [
             'activity' =>
-                $oldActivity,
+            $oldActivity,
         ],
         [
             'activity' =>
-                $activity,
+            $activity,
         ],
         null,
         $date,

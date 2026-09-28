@@ -15,10 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let badge = item.querySelector(".desktop-paper-point-badge");
 
-    if (
-      pointValue <= 0
-      || !["rehearsal", "performance"].includes(pointType)
-    ) {
+    if (pointValue <= 0 || !["rehearsal", "performance"].includes(pointType)) {
       badge?.remove();
       return;
     }
@@ -35,24 +32,15 @@ document.addEventListener("DOMContentLoaded", () => {
       item.appendChild(badge);
     }
 
-    badge.classList.remove(
-      "desktop-paper-point-badge-rehearsal",
-      "desktop-paper-point-badge-performance"
-    );
+    badge.classList.remove("desktop-paper-point-badge-rehearsal", "desktop-paper-point-badge-performance");
 
-    badge.classList.add(
-      `desktop-paper-point-badge-${pointType}`
-    );
+    badge.classList.add(`desktop-paper-point-badge-${pointType}`);
 
-    badge.querySelector(".desktop-paper-point-letter").textContent =
-      pointType === "rehearsal" ? "R" : "P";
+    badge.querySelector(".desktop-paper-point-letter").textContent = pointType === "rehearsal" ? "R" : "P";
 
-    badge.querySelector(".desktop-paper-point-number").textContent =
-      String(pointValue);
+    badge.querySelector(".desktop-paper-point-number").textContent = String(pointValue);
 
-    badge.title =
-      `${pointType === "rehearsal" ? "Rehearsal" : "Performance"} · `
-      + `${pointValue} ${pointValue === 1 ? "point" : "points"}`;
+    badge.title = `${pointType === "rehearsal" ? "Rehearsal" : "Performance"} · ` + `${pointValue} ${pointValue === 1 ? "point" : "points"}`;
   };
 
   const saveEditor = async (editor) => {
@@ -61,9 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const input = editor.querySelector(".activity-point-input");
-    const selected = editor.querySelector(
-      ".activity-point-type-button.selected"
-    );
+    const selected = editor.querySelector(".activity-point-type-button.selected");
 
     const rawValue = (input?.value || "").trim();
 
@@ -86,25 +72,18 @@ document.addEventListener("DOMContentLoaded", () => {
     editor.classList.remove("is-error");
 
     try {
-      const result = await App.post(
-        "ajax/update-activity-points.php",
-        {
-          source_type: editor.dataset.pointSource || "",
-          source_id: editor.dataset.pointId || "",
-          point_value: pointValue,
-          point_type: pointType,
-        }
-      );
+      const result = await App.post("ajax/update-activity-points.php", {
+        source_type: editor.dataset.pointSource || "",
+        source_id: editor.dataset.pointId || "",
+        point_value: pointValue,
+        point_type: pointType,
+      });
 
       editor.dataset.pointType = result.point_type || "";
 
       editor.classList.add("is-saved");
 
-      updateBadge(
-        editor,
-        Number(result.point_value || 0),
-        result.point_type || ""
-      );
+      updateBadge(editor, Number(result.point_value || 0), result.point_type || "");
 
       setTimeout(() => {
         editor.classList.remove("is-saved");
@@ -173,9 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
       input.addEventListener("change", scheduleSave);
     }
 
-    const buttons = editor.querySelectorAll(
-      ".activity-point-type-button"
-    );
+    const buttons = editor.querySelectorAll(".activity-point-type-button");
 
     buttons.forEach((button) => {
       button.addEventListener("click", async (event) => {

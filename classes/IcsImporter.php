@@ -108,7 +108,7 @@ class IcsImporter
                 $summary =
                     $this->unescapeText(
                         $event['SUMMARY']['value']
-                        ?? 'Untitled event'
+                            ?? 'Untitled event'
                     );
 
                 $description =
@@ -136,15 +136,15 @@ class IcsImporter
 
                 $newData = [
                     'summary' =>
-                        substr(
-                            $summary,
-                            0,
-                            255
-                        ),
+                    substr(
+                        $summary,
+                        0,
+                        255
+                    ),
                     'description' =>
-                        $description,
+                    $description,
                     'location' =>
-                        $location
+                    $location
                         ? substr(
                             $location,
                             0,
@@ -152,23 +152,23 @@ class IcsImporter
                         )
                         : null,
                     'source_url' =>
-                        $sourceUrl,
+                    $sourceUrl,
                     'start_local' =>
-                        $start->format(
-                            'Y-m-d H:i:s'
-                        ),
+                    $start->format(
+                        'Y-m-d H:i:s'
+                    ),
                     'end_local' =>
-                        $end
+                    $end
                         ? $end->format(
                             'Y-m-d H:i:s'
                         )
                         : null,
                     'schedule_date' =>
-                        $start->format(
-                            'Y-m-d'
-                        ),
+                    $start->format(
+                        'Y-m-d'
+                    ),
                     'period' =>
-                        $period,
+                    $period,
                 ];
 
                 $existing =
@@ -197,7 +197,6 @@ class IcsImporter
                             $newData
                         )
                     );
-
                 } else {
 
                     $eventId =
@@ -209,10 +208,10 @@ class IcsImporter
 
                     $wasMoved =
                         $existing['schedule_date']
-                            !== $newData['schedule_date']
+                        !== $newData['schedule_date']
                         ||
                         $existing['period']
-                            !== $newData['period'];
+                        !== $newData['period'];
 
                     $isChanged =
                         $this->eventChanged(
@@ -267,7 +266,6 @@ class IcsImporter
                         }
 
                         $changed++;
-
                     } else {
                         $unchanged++;
                     }
@@ -380,27 +378,26 @@ class IcsImporter
 
             return [
                 'total' =>
-                    count($events),
+                count($events),
                 'inserted' =>
-                    $inserted,
+                $inserted,
                 'changed' =>
-                    $changed,
+                $changed,
                 'updated' =>
-                    $changed,
+                $changed,
                 'unchanged' =>
-                    $unchanged,
+                $unchanged,
                 'moved' =>
-                    $moved,
+                $moved,
                 'restored' =>
-                    $restored,
+                $restored,
                 'missing' =>
-                    $missing,
+                $missing,
                 'skipped' =>
-                    $skipped,
+                $skipped,
                 'sync_run_id' =>
-                    $runId,
+                $runId,
             ];
-
         } catch (Throwable $e) {
 
             if (
@@ -514,7 +511,7 @@ class IcsImporter
         ]);
 
         return (int)
-            $this->pdo->lastInsertId();
+        $this->pdo->lastInsertId();
     }
 
     private function updateEvent(
@@ -588,19 +585,19 @@ class IcsImporter
         return json_encode(
             [
                 'summary' =>
-                    $event['summary'] ?? null,
+                $event['summary'] ?? null,
                 'start_local' =>
-                    $event['start_local'] ?? null,
+                $event['start_local'] ?? null,
                 'end_local' =>
-                    $event['end_local'] ?? null,
+                $event['end_local'] ?? null,
                 'schedule_date' =>
-                    $event['schedule_date'] ?? null,
+                $event['schedule_date'] ?? null,
                 'period' =>
-                    $event['period'] ?? null,
+                $event['period'] ?? null,
             ],
             JSON_UNESCAPED_UNICODE
-            |
-            JSON_UNESCAPED_SLASHES
+                |
+                JSON_UNESCAPED_SLASHES
         );
     }
 
@@ -620,7 +617,7 @@ class IcsImporter
         ]);
 
         return (int)
-            $stmt->fetchColumn();
+        $stmt->fetchColumn();
     }
 
     private function startSyncRun(
@@ -641,7 +638,7 @@ class IcsImporter
         ]);
 
         return (int)
-            $this->pdo->lastInsertId();
+        $this->pdo->lastInsertId();
     }
 
     private function finishSyncRun(
@@ -753,7 +750,7 @@ class IcsImporter
         ]);
 
         return (int)
-            $stmt->fetchColumn();
+        $stmt->fetchColumn();
     }
 
     private function parseEvents(
@@ -853,9 +850,7 @@ class IcsImporter
                         2
                     );
 
-                $params[
-                    strtoupper($key)
-                ] =
+                $params[strtoupper($key)] =
                     trim(
                         $paramValue,
                         '"'
@@ -877,7 +872,7 @@ class IcsImporter
         $value =
             trim(
                 $property['value']
-                ?? ''
+                    ?? ''
             );
 
         if ($value === '') {
@@ -926,7 +921,6 @@ class IcsImporter
             return $date->setTimezone(
                 $targetTimezone
             );
-
         } catch (Throwable) {
             return null;
         }

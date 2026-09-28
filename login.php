@@ -63,8 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1"
-    >
+        content="width=device-width, initial-scale=1">
 
     <title>
         Login · <?= e(APP_NAME) ?>
@@ -72,8 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <link
         rel="stylesheet"
-        href="assets/css/app.css"
-    >
+        href="assets/css/app.css">
 
 </head>
 
@@ -102,8 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input
                 type="hidden"
                 name="csrf_token"
-                value="<?= e(csrf_token()) ?>"
-            >
+                value="<?= e(csrf_token()) ?>">
 
             <label>
                 Username
@@ -113,8 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     name="username"
                     autocomplete="username"
                     required
-                    autofocus
-                >
+                    autofocus>
             </label>
 
             <label>
@@ -124,14 +120,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     type="password"
                     name="password"
                     autocomplete="current-password"
-                    required
-                >
+                    required>
             </label>
 
             <button
                 class="button primary"
-                type="submit"
-            >
+                type="submit">
                 Login
             </button>
 
@@ -140,4 +134,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
 
 </body>
+
 </html>

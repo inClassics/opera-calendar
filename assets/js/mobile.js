@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
           cancelable: true,
           clientX: rect.left,
           clientY: Math.min(rect.bottom + 4, window.innerHeight - 8),
-        })
+        }),
       );
     });
   });
