@@ -139,12 +139,11 @@ function mobileOverviewPointBadge(?array $pointItem): void
     <span
         class="mobile-overview-point-badge mobile-overview-point-badge-<?= e($pointType) ?>"
         title="<?= e(
-            $label
-            . ' · '
-            . format_points($pointValue)
-            . ($pointValue == 1 ? ' point' : ' points')
-        ) ?>"
-    >
+                    $label
+                        . ' · '
+                        . format_points($pointValue)
+                        . ($pointValue == 1 ? ' point' : ' points')
+                ) ?>">
         <?= e($letter) ?> · <?= e(format_points($pointValue)) ?>
     </span>
 <?php
@@ -183,8 +182,7 @@ function mobileOverviewRenderRoster(
                 ?>
 
                 <div
-                    class="mobile-overview-person <?= $isCurrentUser ? 'current-user-mobile-overview' : '' ?>"
-                >
+                    class="mobile-overview-person <?= $isCurrentUser ? 'current-user-mobile-overview' : '' ?>">
                     <span class="mobile-overview-person-name">
                         <?= e($member['name']) ?>
                     </span>
@@ -222,12 +220,10 @@ function mobileOverviewRenderRoster(
                 ?>
 
                 <div
-                    class="mobile-overview-roster-day <?= e($dayClass) ?>"
-                >
+                    class="mobile-overview-roster-day <?= e($dayClass) ?>">
                     <div
                         class="mobile-overview-event-grid"
-                        style="--event-count: <?= $eventCount ?>"
-                    >
+                        style="--event-count: <?= $eventCount ?>">
                         <?php foreach ($events as $event): ?>
                             <?php
                             $eventId = $event['id'] !== null
@@ -277,8 +273,7 @@ function mobileOverviewRenderRoster(
                                     <div
                                         class="mobile-member-row mobile-overview-mark-wrap
                                             <?= $isCurrentUser ? 'current-user-mobile-overview' : '' ?>
-                                            <?= e($specialDayClass) ?>"
-                                    >
+                                            <?= e($specialDayClass) ?>">
                                         <?php if ($eventId): ?>
 
                                             <button
@@ -289,8 +284,7 @@ function mobileOverviewRenderRoster(
                                                 data-status="<?= e($status) ?>"
                                                 data-uncertain="<?= $uncertain ? '1' : '0' ?>"
                                                 data-counts-for-points="<?= $countsForPoints ? '1' : '0' ?>"
-                                                <?= !$editable ? 'disabled' : '' ?>
-                                            ></button>
+                                                <?= !$editable ? 'disabled' : '' ?>></button>
 
                                         <?php else: ?>
 
@@ -303,8 +297,7 @@ function mobileOverviewRenderRoster(
                                                 data-status="<?= e($status) ?>"
                                                 data-uncertain="<?= $uncertain ? '1' : '0' ?>"
                                                 data-counts-for-points="<?= $countsForPoints ? '1' : '0' ?>"
-                                                <?= !$editable ? 'disabled' : '' ?>
-                                            ></button>
+                                                <?= !$editable ? 'disabled' : '' ?>></button>
 
                                         <?php endif; ?>
 
@@ -312,8 +305,7 @@ function mobileOverviewRenderRoster(
                                             <button
                                                 type="button"
                                                 class="mobile-options-button mobile-overview-options-button"
-                                                aria-label="Options for <?= e($member['name']) ?>"
-                                            >
+                                                aria-label="Options for <?= e($member['name']) ?>">
                                                 ⋯
                                             </button>
                                         <?php endif; ?>
@@ -341,12 +333,11 @@ function mobileOverviewRenderActivities(
 ): void {
     $periodLabel =
         $period === 'morning'
-            ? 'Morning'
-            : 'Evening';
+        ? 'Morning'
+        : 'Evening';
 ?>
     <div
-        class="mobile-overview-activities mobile-overview-activities-<?= e($period) ?>"
-    >
+        class="mobile-overview-activities mobile-overview-activities-<?= e($period) ?>">
         <div class="mobile-overview-activities-label">
             <?= e($periodLabel) ?>
         </div>
@@ -372,12 +363,10 @@ function mobileOverviewRenderActivities(
                 ?>
 
                 <div
-                    class="mobile-overview-activity-day <?= e($dayClass) ?>"
-                >
+                    class="mobile-overview-activity-day <?= e($dayClass) ?>">
                     <div
                         class="mobile-overview-event-grid"
-                        style="--event-count: <?= $eventCount ?>"
-                    >
+                        style="--event-count: <?= $eventCount ?>">
                         <?php foreach ($events as $event): ?>
                             <?php
                             $eventId = $event['id'] !== null
@@ -395,7 +384,7 @@ function mobileOverviewRenderActivities(
                                 $displayItems = array_map(
                                     static fn(array $item): array => [
                                         'activity' =>
-                                            $item['activity'] ?? '',
+                                        $item['activity'] ?? '',
                                         'point_item' => $item,
                                     ],
                                     $pointItems
@@ -404,7 +393,7 @@ function mobileOverviewRenderActivities(
                                 $displayItems = [[
                                     'activity' => $activity,
                                     'point_item' =>
-                                        $pointItems[0] ?? null,
+                                    $pointItems[0] ?? null,
                                 ]];
                             }
                             ?>
@@ -419,8 +408,7 @@ function mobileOverviewRenderActivities(
                                 data-period="<?= e($period) ?>"
                                 data-split-event-id="<?= $eventId ?: '' ?>"
                                 data-activity-raw="<?= e($activity) ?>"
-                                data-event-count="<?= max(1, count($pointItems)) ?>"
-                            >
+                                data-event-count="<?= max(1, count($pointItems)) ?>">
                                 <?php foreach ($displayItems as $displayItem): ?>
                                     <?php
                                     $displayActivity = trim(
@@ -587,8 +575,7 @@ function mobileOverviewRenderActivities(
                         ?>
 
                         <div
-                            class="mobile-overview-day-heading <?= e($dayClass) ?>"
-                        >
+                            class="mobile-overview-day-heading <?= e($dayClass) ?>">
                             <strong>
                                 <?= e(
                                     strtoupper(
@@ -650,8 +637,7 @@ function mobileOverviewRenderActivities(
                         ?>
 
                         <div
-                            class="mobile-overview-date-cell <?= e($dayClass) ?>"
-                        >
+                            class="mobile-overview-date-cell <?= e($dayClass) ?>">
                             <strong>
                                 <?= (int) $day['day'] ?>
                             </strong>
