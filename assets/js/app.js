@@ -53,6 +53,37 @@ document.addEventListener("DOMContentLoaded", () => {
       width: 100%;
       box-sizing: border-box;
     }
+
+    /* Direct Piece picker shown beside PTS / R / P only in Edit schedule mode. */
+    .activity-direct-piece {
+      display: none;
+      align-items: center;
+      margin-top: 4px;
+      width: 100%;
+    }
+    body.editing-mode .activity-direct-piece {
+      display: flex;
+    }
+    .activity-direct-piece-select {
+      width: 100%;
+      min-width: 0;
+      height: 28px;
+      padding: 2px 24px 2px 6px;
+      border: 1px solid #b9c3cc;
+      border-radius: 5px;
+      background: #fff;
+      font: inherit;
+      font-size: 11px;
+      color: #263746;
+      box-sizing: border-box;
+    }
+    .activity-direct-piece-select:disabled {
+      opacity: .65;
+      cursor: wait;
+    }
+    .activity-direct-piece.is-saving .activity-direct-piece-select {
+      opacity: .65;
+    }
     @media(max-width:600px) {
       .activity-piece-fields { grid-template-columns:1fr; }
       .activity-piece-default { grid-column:auto; }
@@ -176,9 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const findSource = (cell, clickedElement = null) => {
-    const item = clickedElement?.closest(
-      ".desktop-paper-activity-item, .mobile-overview-activity-item"
-    );
+    const item = clickedElement?.closest(".desktop-paper-activity-item, .mobile-overview-activity-item");
 
     if (item?.dataset.activitySource && item?.dataset.activitySourceId) {
       return {
@@ -195,9 +224,7 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     }
 
-    const pointEditors = cell.querySelectorAll(
-      ".activity-point-editor[data-point-source][data-point-id]"
-    );
+    const pointEditors = cell.querySelectorAll(".activity-point-editor[data-point-source][data-point-id]");
 
     if (pointEditors.length === 1) {
       return {
@@ -246,13 +273,164 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     populatePieceOptions(result.pieces || [], result.piece_id);
-    requiredBassesInput.value =
-      result.required_basses_override == null
-        ? ""
-        : String(result.required_basses_override);
+    requiredBassesInput.value = result.required_basses_override == null ? "" : String(result.required_basses_override);
 
     updatePieceDefault();
   };
+
+  /*
+   * Direct Piece picker
+   * ------------------------------------------------------------------------
+   * Every point editor already carries the authoritative activity source:
+   *   data-point-source="calendar|slot|split"
+   *   data-point-id="..."
+   *
+   * Use that directly. This deliberately does not depend on opening the
+   * activity-text editor.
+   */
+  const directPiecePickers = new Map();
+
+  const directPieceKey = (sourceType, sourceId) => `${sourceType}:${sourceId}`;
+
+  const fillDirectPieceSelect = (select, result) => {
+    select.innerHTML = '<option value="">No piece assigned</option>';
+
+    (result.pieces || []).forEach((piece) => {
+      const option = document.createElement("option");
+      option.value = String(piece.id);
+      option.textContent = piece.title;
+      option.dataset.defaultBasses = String(piece.default_basses);
+      select.appendChild(option);
+    });
+
+    select.value = result.piece_id ? String(result.piece_id) : "";
+    select.dataset.loaded = "1";
+    select.disabled = false;
+  };
+
+  const loadDirectPieceSelect = async (select) => {
+    if (select.dataset.loaded === "1" || select.dataset.loading === "1") {
+      return;
+    }
+
+    select.dataset.loading = "1";
+    select.disabled = true;
+
+    try {
+      const result = await App.post("ajax/activity-piece-data.php", {
+        source_type: select.dataset.sourceType,
+        source_id: select.dataset.sourceId,
+      });
+
+      fillDirectPieceSelect(select, result);
+    } catch (error) {
+      select.innerHTML = '<option value="">Could not load Pieces</option>';
+      select.disabled = false;
+      select.title = error.message || "Could not load Pieces.";
+    } finally {
+      delete select.dataset.loading;
+    }
+  };
+
+  const installDirectPiecePickers = () => {
+    document.querySelectorAll(".activity-point-editor[data-point-source][data-point-id]").forEach((pointEditor) => {
+      if (pointEditor.dataset.piecePickerInstalled === "1") return;
+
+      const sourceType = pointEditor.dataset.pointSource || "";
+      const sourceId = pointEditor.dataset.pointId || "";
+
+      if (!sourceType || !sourceId) return;
+
+      pointEditor.dataset.piecePickerInstalled = "1";
+
+      const wrap = document.createElement("div");
+      wrap.className = "activity-direct-piece";
+
+      const select = document.createElement("select");
+      select.className = "activity-direct-piece-select";
+      select.dataset.sourceType = sourceType;
+      select.dataset.sourceId = sourceId;
+      select.setAttribute("aria-label", "Piece");
+      select.title = "Connect this activity to a Piece";
+      select.innerHTML = '<option value="">Piece…</option>';
+
+      wrap.appendChild(select);
+
+      /*
+       * Put the Piece selector immediately after the existing PTS / R / P
+       * editor so it visibly belongs to the same activity square.
+       */
+      pointEditor.insertAdjacentElement("afterend", wrap);
+
+      directPiecePickers.set(directPieceKey(sourceType, sourceId), select);
+
+      select.addEventListener("mousedown", (event) => {
+        event.stopPropagation();
+      });
+
+      select.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+
+      select.addEventListener("focus", async (event) => {
+        event.stopPropagation();
+        await loadDirectPieceSelect(select);
+      });
+
+      select.addEventListener("pointerdown", async (event) => {
+        event.stopPropagation();
+
+        /*
+         * Load before the user opens the native select where possible.
+         * The first click may simply load the choices; the next click opens
+         * the browser's native menu with the populated list.
+         */
+        if (select.dataset.loaded !== "1") {
+          event.preventDefault();
+          await loadDirectPieceSelect(select);
+          select.focus();
+          select.click();
+        }
+      });
+
+      select.addEventListener("change", async (event) => {
+        event.stopPropagation();
+
+        if (select.dataset.loaded !== "1") return;
+
+        wrap.classList.add("is-saving");
+        select.disabled = true;
+
+        try {
+          await App.post("ajax/update-activity-piece.php", {
+            source_type: sourceType,
+            source_id: sourceId,
+            piece_id: select.value || "",
+            required_basses_override: "",
+          });
+
+          /*
+           * Keep another rendered occurrence of the same source in sync if
+           * one exists on the page.
+           */
+          const key = directPieceKey(sourceType, sourceId);
+          const sameSelect = directPiecePickers.get(key);
+          if (sameSelect && sameSelect !== select) {
+            sameSelect.value = select.value;
+          }
+        } catch (error) {
+          alert(error.message || "Could not save Piece.");
+          select.dataset.loaded = "0";
+          await loadDirectPieceSelect(select);
+        } finally {
+          wrap.classList.remove("is-saving");
+          select.disabled = false;
+        }
+      });
+    });
+  };
+
+  installDirectPiecePickers();
 
   const closeEditor = () => {
     overlay.hidden = true;
@@ -278,9 +456,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const period = cell.dataset.period || "";
     const date = cell.dataset.date || "";
-    meta.textContent = [date, period ? period.charAt(0).toUpperCase() + period.slice(1) : ""]
-      .filter(Boolean)
-      .join(" · ");
+    meta.textContent = [date, period ? period.charAt(0).toUpperCase() + period.slice(1) : ""].filter(Boolean).join(" · ");
 
     pieceSelect.innerHTML = '<option value="">Loading…</option>';
     requiredBassesInput.value = "";
@@ -298,8 +474,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } else {
       pieceSelect.innerHTML = '<option value="">No piece assigned</option>';
-      pieceDefault.textContent =
-        "This slot contains several Lydian activities. Split the slot first, then assign a Piece to each activity.";
+      pieceDefault.textContent = "This slot contains several Lydian activities. Split the slot first, then assign a Piece to each activity.";
     }
 
     requestAnimationFrame(() => editor.focus());
@@ -311,7 +486,7 @@ document.addEventListener("DOMContentLoaded", () => {
     cell.addEventListener("click", (event) => {
       if (!App.isEditing()) return;
 
-      if (event.target.closest(".activity-point-editor, .desktop-paper-point-badge")) return;
+      if (event.target.closest(".activity-point-editor, .desktop-paper-point-badge, .activity-direct-piece")) return;
 
       event.preventDefault();
       event.stopPropagation();
