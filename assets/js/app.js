@@ -39,6 +39,20 @@ document.addEventListener("DOMContentLoaded", () => {
       grid-column:1/-1;
       font-size:12px;
     }
+    .activity-editor-dialog {
+      max-height: min(90vh, 760px);
+      display: flex;
+      flex-direction: column;
+    }
+    .activity-editor-body {
+      overflow-y: auto;
+      min-height: 0;
+    }
+    .activity-piece-select,
+    .activity-required-basses {
+      width: 100%;
+      box-sizing: border-box;
+    }
     @media(max-width:600px) {
       .activity-piece-fields { grid-template-columns:1fr; }
       .activity-piece-default { grid-column:auto; }
@@ -162,24 +176,39 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const findSource = (cell, clickedElement = null) => {
-    const splitEventId = cell.dataset.splitEventId || "";
-    if (splitEventId) return { type: "split", id: splitEventId };
+    const item = clickedElement?.closest(
+      ".desktop-paper-activity-item, .mobile-overview-activity-item"
+    );
 
-    const item = clickedElement?.closest(".desktop-paper-activity-item, .mobile-overview-activity-item");
-    const itemPointEditor = item?.querySelector(".activity-point-editor");
-    if (itemPointEditor?.dataset.pointSource && itemPointEditor?.dataset.pointId) {
+    if (item?.dataset.activitySource && item?.dataset.activitySourceId) {
       return {
-        type: itemPointEditor.dataset.pointSource,
-        id: itemPointEditor.dataset.pointId,
+        type: item.dataset.activitySource,
+        id: item.dataset.activitySourceId,
       };
     }
 
-    const editors = cell.querySelectorAll(".activity-point-editor");
-    if (editors.length === 1) {
+    const pointEditor = item?.querySelector(".activity-point-editor");
+    if (pointEditor?.dataset.pointSource && pointEditor?.dataset.pointId) {
       return {
-        type: editors[0].dataset.pointSource || "",
-        id: editors[0].dataset.pointId || "",
+        type: pointEditor.dataset.pointSource,
+        id: pointEditor.dataset.pointId,
       };
+    }
+
+    const pointEditors = cell.querySelectorAll(
+      ".activity-point-editor[data-point-source][data-point-id]"
+    );
+
+    if (pointEditors.length === 1) {
+      return {
+        type: pointEditors[0].dataset.pointSource,
+        id: pointEditors[0].dataset.pointId,
+      };
+    }
+
+    const splitEventId = cell.dataset.splitEventId || "";
+    if (splitEventId) {
+      return { type: "split", id: splitEventId };
     }
 
     return { type: "", id: "" };
@@ -211,17 +240,16 @@ document.addEventListener("DOMContentLoaded", () => {
   pieceSelect.addEventListener("change", updatePieceDefault);
 
   const loadPieceData = async () => {
-    /*
-     * ajax/_bootstrap.php requires a POST CSRF token for every AJAX request.
-     * Use the shared App.post() helper so the token is included automatically.
-     */
     const result = await App.post("ajax/activity-piece-data.php", {
       source_type: activeSourceType,
       source_id: activeSourceId,
     });
 
     populatePieceOptions(result.pieces || [], result.piece_id);
-    requiredBassesInput.value = result.required_basses_override == null ? "" : String(result.required_basses_override);
+    requiredBassesInput.value =
+      result.required_basses_override == null
+        ? ""
+        : String(result.required_basses_override);
 
     updatePieceDefault();
   };
@@ -250,7 +278,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const period = cell.dataset.period || "";
     const date = cell.dataset.date || "";
-    meta.textContent = [date, period ? period.charAt(0).toUpperCase() + period.slice(1) : ""].filter(Boolean).join(" · ");
+    meta.textContent = [date, period ? period.charAt(0).toUpperCase() + period.slice(1) : ""]
+      .filter(Boolean)
+      .join(" · ");
 
     pieceSelect.innerHTML = '<option value="">Loading…</option>';
     requiredBassesInput.value = "";
@@ -268,7 +298,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } else {
       pieceSelect.innerHTML = '<option value="">No piece assigned</option>';
-      pieceDefault.textContent = "This slot contains several Lydian activities. Split the slot first, then assign a Piece to each activity.";
+      pieceDefault.textContent =
+        "This slot contains several Lydian activities. Split the slot first, then assign a Piece to each activity.";
     }
 
     requestAnimationFrame(() => editor.focus());
