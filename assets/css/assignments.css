@@ -1,0 +1,122 @@
+/*
+|--------------------------------------------------------------------------
+| Availability versus assignment
+|--------------------------------------------------------------------------
+|
+| × / • / ? remains the musician's availability/preference.
+| The blue assignment treatment is separate and never replaces that symbol.
+|
+| A scheduled cell gets:
+|   - a blue inset frame
+|   - a small blue "S" badge (Scheduled)
+|
+| This means, for example:
+|   • + S = unavailable/preferred not to work, but actually scheduled.
+|   × + S = available and actually scheduled.
+|   blank + S = no availability answer, but actually scheduled.
+|
+*/
+
+.member-cell.is-assigned {
+  box-shadow:
+    inset 0 0 0 2px #2f6fa5,
+    inset 0 0 0 4px rgba(47, 111, 165, 0.08);
+  background-color: rgba(47, 111, 165, 0.08);
+}
+
+.member-cell.is-assigned::after {
+  content: "S";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 12px;
+  height: 12px;
+  padding: 0 2px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: #2f6fa5;
+  color: #fff;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  z-index: 4;
+}
+
+.desktop-paper-mark,
+.mobile-overview-mark {
+  position: relative;
+}
+
+.member-cell.is-assigned[data-status="unavailable"] {
+  box-shadow:
+    inset 0 0 0 2px #2f6fa5,
+    inset 0 0 0 4px rgba(47, 111, 165, 0.08);
+}
+
+/* Monday's day-off/event background remains visible. */
+.desktop-paper-roster-day.is-monday .member-cell.is-assigned {
+  background-color: rgba(255, 255, 255, 0.24) !important;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Legend
+|--------------------------------------------------------------------------
+*/
+
+.assignment-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.assignment-legend-sample {
+  position: relative;
+  width: 24px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid #2f6fa5;
+  border-radius: 3px;
+  background: rgba(47, 111, 165, 0.08);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.assignment-legend-sample::after {
+  content: "S";
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 12px;
+  height: 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: #2f6fa5;
+  color: #fff;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Mobile
+|--------------------------------------------------------------------------
+*/
+
+@media (max-width: 900px) {
+  .member-cell.is-assigned::after {
+    top: 1px;
+    right: 1px;
+    min-width: 10px;
+    height: 10px;
+    font-size: 6px;
+  }
+
+  .mobile-assignment-explanation {
+    display: flex;
+  }
+}
