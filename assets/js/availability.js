@@ -1,6 +1,14 @@
 document.addEventListener("DOMContentLoaded", () => {
   const App = window.ScheduleApp;
 
+  if (!document.querySelector("link[data-point-multiplier-css]")) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "assets/css/point-multiplier.css";
+    link.dataset.pointMultiplierCss = "1";
+    document.head.appendChild(link);
+  }
+
   if (!App) {
     console.error("ScheduleApp core is missing.");
     return;
@@ -94,6 +102,25 @@ document.addEventListener("DOMContentLoaded", () => {
       <span class="cell-options-check"></span>
       <span>Exclude from points</span>
     </button>
+
+    <div class="cell-options-separator"></div>
+
+    <div class="cell-options-multiplier" data-admin-only="1">
+      <label for="cell-point-multiplier">Point multiplier</label>
+      <div class="cell-options-multiplier-row">
+        <input
+          id="cell-point-multiplier"
+          type="number"
+          min="0"
+          max="10"
+          step="0.5"
+          value="1"
+          inputmode="decimal"
+        >
+        <span>×</span>
+      </div>
+      <small>Applies only to this musician and this call.</small>
+    </div>
 
     <div class="cell-options-separator"></div>
 
@@ -308,6 +335,91 @@ document.addEventListener("DOMContentLoaded", () => {
       cell.dataset.saving = "0";
     }
   };
+
+  /*
+  |--------------------------------------------------------------------------
+  | Per-call point multiplier
+  |--------------------------------------------------------------------------
+  */
+
+  const multiplierBox = menu.querySelector(".cell-options-multiplier");
+
+  const multiplierInput = menu.querySelector("#cell-point-multiplier");
+
+  if (multiplierBox) {
+    multiplierBox.hidden = !window.SECTION_SCHEDULE?.isAdmin;
+  }
+
+  const multiplierPayload = (cell) => {
+    if (isSplitCell(cell)) {
+      return {
+        scope: "split",
+        split_event_id: cell.dataset.splitEventId,
+        user_id: cell.dataset.userId,
+      };
+    }
+
+    return {
+      scope: "normal",
+      user_id: cell.dataset.userId,
+      date: cell.dataset.date,
+      period: cell.dataset.period,
+    };
+  };
+
+  const loadPointMultiplier = async (cell) => {
+    if (!window.SECTION_SCHEDULE?.isAdmin || !multiplierInput) {
+      return;
+    }
+
+    multiplierInput.disabled = true;
+
+    try {
+      const result = await App.post("ajax/point-multiplier.php", {
+        ...multiplierPayload(cell),
+        mode: "get",
+      });
+
+      multiplierInput.value = String(result.point_multiplier ?? 1);
+    } catch (error) {
+      multiplierInput.value = "1";
+    } finally {
+      multiplierInput.disabled = false;
+    }
+  };
+
+  const savePointMultiplier = async () => {
+    if (!activeCell || !window.SECTION_SCHEDULE?.isAdmin || !multiplierInput) {
+      return;
+    }
+
+    const value = Number(multiplierInput.value);
+
+    if (!Number.isFinite(value) || value < 0 || value > 10) {
+      alert("Point multiplier must be between 0 and 10.");
+      return;
+    }
+
+    multiplierInput.disabled = true;
+
+    try {
+      await App.post("ajax/point-multiplier.php", {
+        ...multiplierPayload(activeCell),
+        mode: "set",
+        point_multiplier: value,
+      });
+
+      multiplierInput.value = String(value);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      multiplierInput.disabled = false;
+    }
+  };
+
+  multiplierInput?.addEventListener("click", (event) => event.stopPropagation());
+
+  multiplierInput?.addEventListener("change", savePointMultiplier);
 
   /*
   |--------------------------------------------------------------------------

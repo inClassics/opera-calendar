@@ -159,7 +159,7 @@ function planningSuggestedPointType(array $activity): array
                 <div>Type</div>
                 <div>Available</div>
                 <div>Assigned</div>
-                <div>Status</div>
+                <div>Actions</div>
             </div>
 
             <?php foreach ($activities as $a):
@@ -263,11 +263,20 @@ function planningSuggestedPointType(array $activity): array
                     <div class="planning-number assigned-count"><?= (int)$a['assigned_count'] ?></div>
 
                     <div>
-                        <button
-                            type="button"
-                            class="planning-manage button <?= $problem ? 'planning-warning' : '' ?>">
-                            <?= $problem ? 'Manage ⚠' : 'Manage' ?>
-                        </button>
+                        <div class="planning-actions">
+                            <button
+                                type="button"
+                                class="planning-manage button <?= $problem ? 'planning-warning' : '' ?>">
+                                <?= $problem ? 'Manage ⚠' : 'Manage' ?>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="planning-remove button danger"
+                                title="Remove this entry from Planning and Calendar">
+                                Remove
+                            </button>
+                        </div>
                     </div>
                 </div>
             <?php endforeach; ?>

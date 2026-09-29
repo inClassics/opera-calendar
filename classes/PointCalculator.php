@@ -14,24 +14,10 @@ final class PointCalculator
         $runningRehearsal = [];
         $runningPerformance = [];
 
-        foreach (
-            $members
-            as $member
-        ) {
-            $userId =
-                (int) $member['id'];
-
-            $runningRehearsal[$userId] =
-                (float) (
-                    $member['morning_starting_points']
-                    ?? 0
-                );
-
-            $runningPerformance[$userId] =
-                (float) (
-                    $member['evening_starting_points']
-                    ?? 0
-                );
+        foreach ($members as $member) {
+            $userId = (int)$member['id'];
+            $runningRehearsal[$userId] = (float)($member['morning_starting_points'] ?? 0);
+            $runningPerformance[$userId] = (float)($member['evening_starting_points'] ?? 0);
         }
 
         $weeklyRehearsal = [];
@@ -39,293 +25,171 @@ final class PointCalculator
 
         /*
         |--------------------------------------------------------------------------
-        | Add points for one event
+        | Per-call point multipliers
         |--------------------------------------------------------------------------
         |
-        | Each player's own multiplier is applied to the points earned from
-        | the event.
+        | These are separate from the permanent user multiplier.
+        | final earned points =
+        | activity points × user multiplier × per-call multiplier.
         |
-        | Example:
-        |
-        | event = 3 points
-        | multiplier 1 = +3
-        | multiplier 2 = +6
-        |
-        | Starting points are NOT multiplied.
-        |
+        | Keeping this in separate tables means the existing availability schema
+        | and old data remain untouched.
         */
+        $normalMultipliers = [];
+        $splitMultipliers = [];
 
-        $addPoints =
-            static function (
-                float $pointValue,
-                ?string $pointType,
-                array $eventAvailability
-            ) use (
-                $members,
-                &$runningRehearsal,
-                &$runningPerformance
-            ): void {
+        global $pdo;
 
-                if (
-                    $pointValue <= 0
-                ) {
-                    return;
+        if ($pdo instanceof PDO) {
+            try {
+                $stmt = $pdo->prepare("
+                    SELECT user_id, schedule_date, period, point_multiplier
+                    FROM availability_point_multipliers
+                    WHERE schedule_date BETWEEN ? AND ?
+                ");
+                $stmt->execute([
+                    $seasonStartDate->format('Y-m-d'),
+                    $endDate->format('Y-m-d')
+                ]);
+
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $normalMultipliers[$row['schedule_date']][$row['period']][(int)$row['user_id']]
+                        = (float)$row['point_multiplier'];
                 }
 
-                if (
-                    !in_array(
-                        $pointType,
-                        [
-                            'rehearsal',
-                            'performance'
-                        ],
-                        true
-                    )
-                ) {
-                    return;
+                $stmt = $pdo->prepare("
+                    SELECT spm.split_event_id, spm.user_id, spm.point_multiplier
+                    FROM split_point_multipliers spm
+                    INNER JOIN schedule_split_events se
+                        ON se.id = spm.split_event_id
+                    WHERE se.schedule_date BETWEEN ? AND ?
+                ");
+                $stmt->execute([
+                    $seasonStartDate->format('Y-m-d'),
+                    $endDate->format('Y-m-d')
+                ]);
+
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $splitMultipliers[(int)$row['split_event_id']][(int)$row['user_id']]
+                        = (float)$row['point_multiplier'];
                 }
+            } catch (Throwable) {
+                // Migration not installed yet: preserve the old 1× behaviour.
+                $normalMultipliers = [];
+                $splitMultipliers = [];
+            }
+        }
 
-                foreach (
-                    $members
-                    as $member
-                ) {
-                    $userId =
-                        (int) $member['id'];
-
-                    $item =
-                        $eventAvailability[$userId]
-                        ?? null;
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Player must be available
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        !is_array(
-                            $item
-                        )
-                        ||
-                        (
-                            $item['status']
-                            ?? ''
-                        )
-                        !== 'available'
-                    ) {
-                        continue;
-                    }
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Availability can explicitly be excluded from points
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        (
-                            $item['counts_for_points']
-                            ?? true
-                        )
-                        === false
-                    ) {
-                        continue;
-                    }
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | User multiplier
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $multiplier =
-                        (float) (
-                            $member['multiplier']
-                            ?? 1
-                        );
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Defensive fallback
-                    |--------------------------------------------------------------------------
-                    |
-                    | A missing, zero or invalid multiplier should not
-                    | accidentally remove someone's points.
-                    |
-                    */
-
-                    if (
-                        $multiplier <= 0
-                    ) {
-                        $multiplier = 1;
-                    }
-
-                    $earnedPoints =
-                        $pointValue
-                        *
-                        $multiplier;
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Add to rehearsal/performance balance
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        $pointType
-                        === 'rehearsal'
-                    ) {
-                        $runningRehearsal[$userId] +=
-                            $earnedPoints;
-                    } else {
-                        $runningPerformance[$userId] +=
-                            $earnedPoints;
-                    }
-                }
-            };
-
-        /*
-        |--------------------------------------------------------------------------
-        | Walk through season
-        |--------------------------------------------------------------------------
-        */
-
-        $date =
-            clone $seasonStartDate;
-
-        while (
-            $date <= $endDate
-        ) {
-            $ymd =
-                $date->format(
-                    'Y-m-d'
-                );
-
-            $weekday =
-                (int) $date->format(
-                    'N'
-                );
-
-            /*
-            |--------------------------------------------------------------------------
-            | Monday snapshot
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                $weekday === 1
-            ) {
-                $weeklyRehearsal[$ymd] =
-                    $runningRehearsal;
-
-                $weeklyPerformance[$ymd] =
-                    $runningPerformance;
+        $addPoints = static function (
+            float $pointValue,
+            ?string $pointType,
+            array $eventAvailability,
+            array $callMultipliers = []
+        ) use (
+            $members,
+            &$runningRehearsal,
+            &$runningPerformance
+        ): void {
+            if ($pointValue <= 0) {
+                return;
             }
 
-            foreach (
-                [
-                    'morning',
-                    'evening'
-                ]
-                as $period
-            ) {
-                /*
-                |--------------------------------------------------------------------------
-                | Split events
-                |--------------------------------------------------------------------------
-                */
+            if (!in_array($pointType, ['rehearsal', 'performance'], true)) {
+                return;
+            }
 
-                $splitForSlot =
-                    $splitEvents[$ymd][$period]
-                    ?? [];
+            foreach ($members as $member) {
+                $userId = (int)$member['id'];
+                $item = $eventAvailability[$userId] ?? null;
 
-                if (
-                    !empty($splitForSlot)
-                ) {
-                    foreach (
-                        $splitForSlot
-                        as $event
-                    ) {
-                        $eventId =
-                            (int) (
-                                $event['id']
-                                ?? 0
-                            );
+                if (!is_array($item) || ($item['status'] ?? '') !== 'available') {
+                    continue;
+                }
 
-                        if (
-                            $eventId <= 0
-                        ) {
+                if (($item['counts_for_points'] ?? true) === false) {
+                    continue;
+                }
+
+                $userMultiplier = (float)($member['multiplier'] ?? 1);
+                if ($userMultiplier <= 0) {
+                    $userMultiplier = 1;
+                }
+
+                $callMultiplier = (float)($callMultipliers[$userId] ?? 1);
+                if ($callMultiplier < 0) {
+                    $callMultiplier = 1;
+                }
+
+                $earnedPoints = $pointValue * $userMultiplier * $callMultiplier;
+
+                if ($pointType === 'rehearsal') {
+                    $runningRehearsal[$userId] += $earnedPoints;
+                } else {
+                    $runningPerformance[$userId] += $earnedPoints;
+                }
+            }
+        };
+
+        $date = clone $seasonStartDate;
+
+        while ($date <= $endDate) {
+            $ymd = $date->format('Y-m-d');
+            $weekday = (int)$date->format('N');
+
+            if ($weekday === 1) {
+                $weeklyRehearsal[$ymd] = $runningRehearsal;
+                $weeklyPerformance[$ymd] = $runningPerformance;
+            }
+
+            foreach (['morning', 'evening'] as $period) {
+                $splitForSlot = $splitEvents[$ymd][$period] ?? [];
+
+                if (!empty($splitForSlot)) {
+                    foreach ($splitForSlot as $event) {
+                        $eventId = (int)($event['id'] ?? 0);
+
+                        if ($eventId <= 0) {
                             continue;
                         }
 
                         $addPoints(
-                            (float) (
-                                $event['point_value']
-                                ?? 0
-                            ),
-                            $event['point_type']
-                                ?? null,
-                            $splitAvailability[$eventId]
-                                ?? []
+                            (float)($event['point_value'] ?? 0),
+                            $event['point_type'] ?? null,
+                            $splitAvailability[$eventId] ?? [],
+                            $splitMultipliers[$eventId] ?? []
                         );
                     }
 
                     continue;
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Normal unsplit activity
-                |--------------------------------------------------------------------------
-                */
+                $items = $activityPointItems[$ymd][$period] ?? [];
 
-                $items =
-                    $activityPointItems[$ymd][$period]
-                    ?? [];
-
-                if (
-                    empty($items)
-                ) {
+                if (empty($items)) {
                     continue;
                 }
 
-                $slotAvailability =
-                    $availability[$ymd][$period]
-                    ?? [];
+                $slotAvailability = $availability[$ymd][$period] ?? [];
+                $callMultipliers = $normalMultipliers[$ymd][$period] ?? [];
 
-                foreach (
-                    $items
-                    as $item
-                ) {
+                foreach ($items as $item) {
                     $addPoints(
-                        (float) (
-                            $item['point_value']
-                            ?? 0
-                        ),
-                        $item['point_type']
-                            ?? null,
-                        $slotAvailability
+                        (float)($item['point_value'] ?? 0),
+                        $item['point_type'] ?? null,
+                        $slotAvailability,
+                        $callMultipliers
                     );
                 }
             }
 
-            $date->modify(
-                '+1 day'
-            );
+            $date->modify('+1 day');
         }
 
         return [
-            'weekly_rehearsal' =>
-            $weeklyRehearsal,
-
-            'weekly_performance' =>
-            $weeklyPerformance,
-
-            'running_rehearsal' =>
-            $runningRehearsal,
-
-            'running_performance' =>
-            $runningPerformance,
+            'weekly_rehearsal' => $weeklyRehearsal,
+            'weekly_performance' => $weeklyPerformance,
+            'running_rehearsal' => $runningRehearsal,
+            'running_performance' => $runningPerformance,
         ];
     }
 }

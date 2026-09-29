@@ -105,6 +105,24 @@ class IcsImporter
                         $event['UID']['value']
                     );
 
+                /*
+                |--------------------------------------------------------------------------
+                | Locally excluded activities
+                |--------------------------------------------------------------------------
+                |
+                | Removing a Lydian activity from Planning/Calendar must survive
+                | later feed syncs. The exclusion is keyed by source + ICS UID.
+                */
+                if (
+                    $this->isPlanningExcluded(
+                        $sourceId,
+                        $uid
+                    )
+                ) {
+                    $skipped++;
+                    continue;
+                }
+
                 $summary =
                     $this->unescapeText(
                         $event['SUMMARY']['value']
@@ -752,6 +770,36 @@ class IcsImporter
         return (int)
         $stmt->fetchColumn();
     }
+
+    private function isPlanningExcluded(
+        int $sourceId,
+        string $uid
+    ): bool {
+        try {
+            $stmt =
+                $this->pdo->prepare("
+                    SELECT 1
+                    FROM planning_exclusions
+                    WHERE source_type = 'calendar'
+                      AND calendar_source_id = ?
+                      AND calendar_source_uid = ?
+                    LIMIT 1
+                ");
+
+            $stmt->execute([
+                $sourceId,
+                $uid
+            ]);
+
+            return (bool)$stmt->fetchColumn();
+        } catch (Throwable) {
+            /*
+            | Migration not installed yet: preserve old import behaviour.
+            */
+            return false;
+        }
+    }
+
 
     private function parseEvents(
         string $icsText

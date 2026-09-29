@@ -1,0 +1,36 @@
+.cell-options-multiplier {
+  padding: 7px 9px;
+}
+
+.cell-options-multiplier[hidden] {
+  display: none;
+}
+
+.cell-options-multiplier label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.cell-options-multiplier-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.cell-options-multiplier input {
+  min-width: 0;
+  padding: 6px 7px;
+  font-size: 12px;
+}
+
+.cell-options-multiplier small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.25;
+}

@@ -117,6 +117,40 @@
     }),
   );
 
+  /*
+  |--------------------------------------------------------------------------
+  | Remove an effective schedule entry
+  |--------------------------------------------------------------------------
+  |
+  | Imported Lydian events are locally excluded rather than forgotten. The
+  | importer migration-aware code keeps them excluded on later syncs.
+  */
+
+  document.querySelectorAll(".planning-remove").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const row = button.closest(".planning-activity");
+      const title = row.querySelector(".planning-title strong")?.textContent?.trim() || "this activity";
+
+      if (!confirm(`Remove "${title}" from Planning and Calendar?\n\n` + "This is a local scheduling exclusion. Existing history is kept.")) {
+        return;
+      }
+
+      button.disabled = true;
+
+      try {
+        await post("ajax/planning-remove-activity.php", {
+          source_type: row.dataset.sourceType,
+          source_id: row.dataset.sourceId,
+        });
+
+        row.remove();
+      } catch (e) {
+        alert(e.message);
+        button.disabled = false;
+      }
+    });
+  });
+
   const drawer = document.querySelector(".planning-drawer");
 
   const backdrop = document.querySelector(".planning-drawer-backdrop");
@@ -137,10 +171,18 @@
       btn.disabled = true;
 
       try {
-        const j = await post("ajax/planning-activity.php", {
-          source_type: row.dataset.sourceType,
-          source_id: row.dataset.sourceId,
-        });
+        const [j, replacementResult] = await Promise.all([
+          post("ajax/planning-activity.php", {
+            source_type: row.dataset.sourceType,
+            source_id: row.dataset.sourceId,
+          }),
+          post("ajax/planning-replacements.php", {
+            source_type: row.dataset.sourceType,
+            source_id: row.dataset.sourceId,
+          }),
+        ]);
+
+        const replacements = replacementResult.replacements || {};
 
         drawer.querySelector(".planning-drawer-meta").textContent = `${j.meta.schedule_date} · ${j.meta.period}`;
 
@@ -171,8 +213,56 @@
           small.textContent = `${mark} ${m.status}` + (m.uncertain ? " · uncertain" : "");
 
           name.append(strong, small);
-          line.append(c, name);
+
+          const replacementWrap = document.createElement("div");
+          replacementWrap.className = "planning-replacement";
+
+          const replacementLabel = document.createElement("span");
+          replacementLabel.textContent = "External replacement";
+
+          const replacementInput = document.createElement("input");
+          replacementInput.type = "text";
+          replacementInput.placeholder = "Replacement name (optional)";
+          replacementInput.value = replacements[String(m.id)] || "";
+          replacementInput.disabled = !c.checked;
+
+          const replacementHelp = document.createElement("small");
+          replacementHelp.textContent = "The selected section member keeps this assignment and earns the points.";
+
+          replacementWrap.append(replacementLabel, replacementInput, replacementHelp);
+
+          line.append(c, name, replacementWrap);
           box.append(line);
+
+          let replacementTimer = null;
+
+          const saveReplacement = async () => {
+            if (!c.checked) {
+              return;
+            }
+
+            replacementInput.disabled = true;
+
+            try {
+              await post("ajax/planning-replacement-save.php", {
+                source_type: row.dataset.sourceType,
+                source_id: row.dataset.sourceId,
+                user_id: m.id,
+                replacement_name: replacementInput.value.trim(),
+              });
+            } catch (e) {
+              alert(e.message);
+            } finally {
+              replacementInput.disabled = false;
+            }
+          };
+
+          replacementInput.addEventListener("input", () => {
+            clearTimeout(replacementTimer);
+            replacementTimer = setTimeout(saveReplacement, 500);
+          });
+
+          replacementInput.addEventListener("change", saveReplacement);
 
           c.addEventListener("change", async () => {
             c.disabled = true;
@@ -188,6 +278,19 @@
               const count = [...box.querySelectorAll('input[type="checkbox"]')].filter((x) => x.checked).length;
 
               row.querySelector(".assigned-count").textContent = String(count);
+
+              replacementInput.disabled = !c.checked;
+
+              if (!c.checked) {
+                replacementInput.value = "";
+
+                await post("ajax/planning-replacement-save.php", {
+                  source_type: row.dataset.sourceType,
+                  source_id: row.dataset.sourceId,
+                  user_id: m.id,
+                  replacement_name: "",
+                });
+              }
             } catch (e) {
               c.checked = !c.checked;
               alert(e.message);

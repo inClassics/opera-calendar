@@ -279,3 +279,64 @@
     min-width: 760px;
   }
 }
+
+/* Planning actions stay on one line. */
+.planning-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.planning-actions .button {
+  min-width: 0;
+  padding-left: 7px;
+  padding-right: 7px;
+  white-space: nowrap;
+}
+
+.planning-actions .danger {
+  color: #a52b2b;
+  border-color: #e2bcbc;
+}
+
+.planning-actions .danger:hover {
+  background: #fff0f0;
+}
+
+.planning-member {
+  grid-template-columns: 30px minmax(110px, 1fr) minmax(180px, 1.35fr);
+}
+
+.planning-replacement {
+  display: grid;
+  gap: 3px;
+}
+
+.planning-replacement > span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+
+.planning-replacement input {
+  padding: 7px 8px;
+  font-size: 12px;
+}
+
+.planning-replacement small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+@media (max-width: 600px) {
+  .planning-member {
+    grid-template-columns: 30px 1fr;
+  }
+
+  .planning-replacement {
+    grid-column: 2;
+  }
+}
