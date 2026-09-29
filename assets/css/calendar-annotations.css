@@ -15,6 +15,7 @@
 }
 
 .cell-options-day-status select {
+  width: 100%;
   padding: 6px 7px;
   font-size: 12px;
 }
@@ -29,29 +30,34 @@
 
 .member-cell {
   position: relative;
+  overflow: visible;
 }
 
 .calendar-annotation-badges {
   position: absolute;
   left: 1px;
   bottom: 1px;
-  z-index: 6;
+  z-index: 8;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 1px;
+  max-width: calc(100% - 2px);
   pointer-events: none;
 }
 
 .calendar-annotation-badge {
   display: block;
   min-width: 14px;
+  max-width: 100%;
   padding: 1px 2px;
   border-radius: 3px;
+  overflow: hidden;
   font-size: 6px;
   font-weight: 900;
   line-height: 1.15;
   letter-spacing: 0.01em;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -74,16 +80,57 @@
 }
 
 .member-cell.has-day-status-sick {
-  background-image: repeating-linear-gradient(-45deg, rgba(185, 45, 45, 0.08), rgba(185, 45, 45, 0.08) 4px, transparent 4px, transparent 8px);
+  background-image: repeating-linear-gradient(-45deg, rgba(185, 45, 45, 0.1), rgba(185, 45, 45, 0.1) 4px, transparent 4px, transparent 8px);
 }
 
 .member-cell.has-day-status-unpaid-leave {
-  background-image: repeating-linear-gradient(-45deg, rgba(135, 91, 41, 0.08), rgba(135, 91, 41, 0.08) 4px, transparent 4px, transparent 8px);
+  background-image: repeating-linear-gradient(-45deg, rgba(135, 91, 41, 0.1), rgba(135, 91, 41, 0.1) 4px, transparent 4px, transparent 8px);
+}
+
+/*
+ * Assignment/replacement annotation is separate from the availability
+ * annotations because it belongs to a specific assigned call.
+ */
+.calendar-assignment-annotation {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  z-index: 9;
+  display: block;
+  max-width: calc(100% - 3px);
+  padding: 1px 2px;
+  border-radius: 3px;
+  overflow: hidden;
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.calendar-replacement-annotation {
+  color: #164b63;
+  background: #dff4ff;
+  border: 1px solid #8bc4df;
+}
+
+/*
+ * If a cell has both a replacement and other annotations, keep the
+ * multiplier/leave stack on the left and replacement on the right.
+ */
+.member-cell:has(.calendar-assignment-annotation) .calendar-annotation-badges {
+  max-width: 48%;
 }
 
 @media (max-width: 900px) {
-  .calendar-annotation-badge {
+  .calendar-annotation-badge,
+  .calendar-assignment-annotation {
     font-size: 5px;
     padding: 1px;
+  }
+
+  .calendar-replacement-annotation {
+    max-width: 95%;
   }
 }

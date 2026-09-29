@@ -12,23 +12,47 @@ class Assignment
 
         $queries = [
             'calendar' => "
-                SELECT aa.source_id, aa.user_id
+                SELECT
+                    aa.source_id,
+                    aa.user_id,
+                    ar.replacement_name
                 FROM activity_assignments aa
-                INNER JOIN calendar_events ce ON ce.id = aa.source_id
+                INNER JOIN calendar_events ce
+                    ON ce.id = aa.source_id
+                LEFT JOIN assignment_replacements ar
+                    ON ar.source_type = aa.source_type
+                   AND ar.source_id = aa.source_id
+                   AND ar.user_id = aa.user_id
                 WHERE aa.source_type = 'calendar'
                   AND ce.schedule_date BETWEEN ? AND ?
             ",
             'slot' => "
-                SELECT aa.source_id, aa.user_id
+                SELECT
+                    aa.source_id,
+                    aa.user_id,
+                    ar.replacement_name
                 FROM activity_assignments aa
-                INNER JOIN schedule_slots ss ON ss.id = aa.source_id
+                INNER JOIN schedule_slots ss
+                    ON ss.id = aa.source_id
+                LEFT JOIN assignment_replacements ar
+                    ON ar.source_type = aa.source_type
+                   AND ar.source_id = aa.source_id
+                   AND ar.user_id = aa.user_id
                 WHERE aa.source_type = 'slot'
                   AND ss.schedule_date BETWEEN ? AND ?
             ",
             'split' => "
-                SELECT aa.source_id, aa.user_id
+                SELECT
+                    aa.source_id,
+                    aa.user_id,
+                    ar.replacement_name
                 FROM activity_assignments aa
-                INNER JOIN schedule_split_events se ON se.id = aa.source_id
+                INNER JOIN schedule_split_events se
+                    ON se.id = aa.source_id
+                LEFT JOIN assignment_replacements ar
+                    ON ar.source_type = aa.source_type
+                   AND ar.source_id = aa.source_id
+                   AND ar.user_id = aa.user_id
                 WHERE aa.source_type = 'split'
                   AND se.schedule_date BETWEEN ? AND ?
             ",
@@ -39,7 +63,10 @@ class Assignment
             $stmt->execute([$f, $t]);
 
             foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                $result[$sourceType][(int)$row['source_id']][(int)$row['user_id']] = true;
+                $result[$sourceType][(int)$row['source_id']][(int)$row['user_id']] = [
+                    'assigned' => true,
+                    'replacement_name' => trim((string)($row['replacement_name'] ?? '')),
+                ];
             }
         }
 
