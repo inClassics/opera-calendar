@@ -9,6 +9,22 @@ document.addEventListener("DOMContentLoaded", () => {
     document.head.appendChild(link);
   }
 
+  if (!document.querySelector("link[data-calendar-annotations-css]")) {
+    const annotationCss = document.createElement("link");
+    annotationCss.rel = "stylesheet";
+    annotationCss.href = "assets/css/calendar-annotations.css";
+    annotationCss.dataset.calendarAnnotationsCss = "1";
+    document.head.appendChild(annotationCss);
+  }
+
+  if (!document.querySelector("script[data-calendar-annotations-js]")) {
+    const annotationScript = document.createElement("script");
+    annotationScript.src = "assets/js/calendar-annotations.js";
+    annotationScript.defer = true;
+    annotationScript.dataset.calendarAnnotationsJs = "1";
+    document.head.appendChild(annotationScript);
+  }
+
   if (!App) {
     console.error("ScheduleApp core is missing.");
     return;
@@ -120,6 +136,16 @@ document.addEventListener("DOMContentLoaded", () => {
         <span>×</span>
       </div>
       <small>Applies only to this musician and this call.</small>
+    </div>
+
+    <div class="cell-options-day-status" data-admin-only="1">
+      <label for="cell-day-status">Day status</label>
+      <select id="cell-day-status">
+        <option value="">Normal</option>
+        <option value="sick">Sick</option>
+        <option value="unpaid_leave">Unpaid leave</option>
+      </select>
+      <small>Applies to this musician for the whole day.</small>
     </div>
 
     <div class="cell-options-separator"></div>
@@ -410,6 +436,8 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       multiplierInput.value = String(value);
+
+      document.dispatchEvent(new CustomEvent("calendar-annotations-refresh"));
     } catch (error) {
       alert(error.message);
     } finally {
@@ -420,6 +448,69 @@ document.addEventListener("DOMContentLoaded", () => {
   multiplierInput?.addEventListener("click", (event) => event.stopPropagation());
 
   multiplierInput?.addEventListener("change", savePointMultiplier);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Sick / unpaid leave day status
+  |--------------------------------------------------------------------------
+  */
+
+  const dayStatusBox = menu.querySelector(".cell-options-day-status");
+
+  const dayStatusSelect = menu.querySelector("#cell-day-status");
+
+  if (dayStatusBox) {
+    dayStatusBox.hidden = !window.SECTION_SCHEDULE?.isAdmin;
+  }
+
+  const loadDayStatus = async (cell) => {
+    if (!window.SECTION_SCHEDULE?.isAdmin || !dayStatusSelect) {
+      return;
+    }
+
+    dayStatusSelect.disabled = true;
+
+    try {
+      const result = await App.post("ajax/day-status.php", {
+        user_id: cell.dataset.userId,
+        date: cell.dataset.date,
+        mode: "get",
+      });
+
+      dayStatusSelect.value = result.day_status || "";
+    } catch (error) {
+      dayStatusSelect.value = "";
+    } finally {
+      dayStatusSelect.disabled = false;
+    }
+  };
+
+  const saveDayStatus = async () => {
+    if (!activeCell || !window.SECTION_SCHEDULE?.isAdmin || !dayStatusSelect) {
+      return;
+    }
+
+    dayStatusSelect.disabled = true;
+
+    try {
+      await App.post("ajax/day-status.php", {
+        user_id: activeCell.dataset.userId,
+        date: activeCell.dataset.date,
+        mode: "set",
+        day_status: dayStatusSelect.value,
+      });
+
+      document.dispatchEvent(new CustomEvent("calendar-annotations-refresh"));
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      dayStatusSelect.disabled = false;
+    }
+  };
+
+  dayStatusSelect?.addEventListener("click", (event) => event.stopPropagation());
+
+  dayStatusSelect?.addEventListener("change", saveDayStatus);
 
   /*
   |--------------------------------------------------------------------------

@@ -1,0 +1,89 @@
+.cell-options-day-status {
+  padding: 7px 9px;
+}
+
+.cell-options-day-status[hidden] {
+  display: none;
+}
+
+.cell-options-day-status label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.cell-options-day-status select {
+  padding: 6px 7px;
+  font-size: 12px;
+}
+
+.cell-options-day-status small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.member-cell {
+  position: relative;
+}
+
+.calendar-annotation-badges {
+  position: absolute;
+  left: 1px;
+  bottom: 1px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  pointer-events: none;
+}
+
+.calendar-annotation-badge {
+  display: block;
+  min-width: 14px;
+  padding: 1px 2px;
+  border-radius: 3px;
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.calendar-annotation-multiplier {
+  color: #624800;
+  background: #fff0a8;
+  border: 1px solid #d7b942;
+}
+
+.calendar-annotation-sick {
+  color: #8d2525;
+  background: #ffe0e0;
+  border: 1px solid #db9a9a;
+}
+
+.calendar-annotation-unpaid {
+  color: #65431d;
+  background: #f4e4cf;
+  border: 1px solid #c9a77e;
+}
+
+.member-cell.has-day-status-sick {
+  background-image: repeating-linear-gradient(-45deg, rgba(185, 45, 45, 0.08), rgba(185, 45, 45, 0.08) 4px, transparent 4px, transparent 8px);
+}
+
+.member-cell.has-day-status-unpaid-leave {
+  background-image: repeating-linear-gradient(-45deg, rgba(135, 91, 41, 0.08), rgba(135, 91, 41, 0.08) 4px, transparent 4px, transparent 8px);
+}
+
+@media (max-width: 900px) {
+  .calendar-annotation-badge {
+    font-size: 5px;
+    padding: 1px;
+  }
+}

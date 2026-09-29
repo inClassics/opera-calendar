@@ -62,18 +62,26 @@ try {
 
         // Linked split representation must disappear from Calendar too.
         $stmt = $pdo->prepare("
-            UPDATE schedule_split_events
-            SET schedule_date = ?, updated_at = CURRENT_TIMESTAMP
+            DELETE FROM schedule_split_events
             WHERE calendar_event_id = ?
         ");
-        $stmt->execute([$archiveDate, $id]);
+        $stmt->execute([$id]);
+
+        /*
+        | Calendar events are retained so their source UID and history remain
+        | available. Give every archived event its own harmless date to avoid
+        | any date/period uniqueness assumptions.
+        */
+        $archiveDateForEvent = (new DateTimeImmutable('1900-01-01'))
+            ->modify('+' . $id . ' days')
+            ->format('Y-m-d');
 
         $stmt = $pdo->prepare("
             UPDATE calendar_events
             SET schedule_date = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ");
-        $stmt->execute([$archiveDate, $id]);
+        $stmt->execute([$archiveDateForEvent, $id]);
     } elseif ($type === 'slot') {
         $stmt = $pdo->prepare("
             SELECT id, schedule_date, period, activity
@@ -107,12 +115,17 @@ try {
             current_user_id(),
         ]);
 
+        /*
+        | schedule_slots has a UNIQUE(schedule_date, period) key, so moving every
+        | removed slot to one archive date can collide. The exclusion row above
+        | preserves the audit metadata; the effective manual slot itself can be
+        | deleted safely.
+        */
         $stmt = $pdo->prepare("
-            UPDATE schedule_slots
-            SET schedule_date = ?, updated_at = CURRENT_TIMESTAMP
+            DELETE FROM schedule_slots
             WHERE id = ?
         ");
-        $stmt->execute([$archiveDate, $id]);
+        $stmt->execute([$id]);
     } else {
         $stmt = $pdo->prepare("
             SELECT id, schedule_date, period, activity
@@ -146,12 +159,16 @@ try {
             current_user_id(),
         ]);
 
+        /*
+        | Manual split events are effective schedule rows. Their exclusion/audit
+        | record is already stored above, so delete the live row instead of
+        | parking many rows on the same fake date.
+        */
         $stmt = $pdo->prepare("
-            UPDATE schedule_split_events
-            SET schedule_date = ?, updated_at = CURRENT_TIMESTAMP
+            DELETE FROM schedule_split_events
             WHERE id = ?
         ");
-        $stmt->execute([$archiveDate, $id]);
+        $stmt->execute([$id]);
     }
 
     $pdo->commit();
