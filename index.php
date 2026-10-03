@@ -10,6 +10,7 @@ require_once __DIR__ . '/classes/PointCalculator.php';
 require_once __DIR__ . '/classes/PointCounting.php';
 require_once __DIR__ . '/classes/ScheduleChangeTracker.php';
 require_once __DIR__ . '/classes/Assignment.php';
+require_once __DIR__ . '/classes/WeeklyPointBalance.php';
 
 require_login();
 
@@ -19,6 +20,7 @@ $pointCalculator = new PointCalculator();
 $pointCounting = new PointCounting($pdo);
 $changeTracker = new ScheduleChangeTracker($pdo);
 $assignmentRepository = new Assignment($pdo);
+$weeklyPointBalanceRepository = new WeeklyPointBalance($pdo);
 
 $members = $userRepository->activeUsers();
 
@@ -117,6 +119,8 @@ $seasonStartDate = new DateTime(
 
 $weeklyRehearsalPoints = [];
 $weeklyPerformancePoints = [];
+$weeklyPointBalances = [];
+$pointTotals = [];
 
 if ($context['lastDay'] >= $seasonStartDate) {
     $pointAvailability = $scheduleRepository->availabilityForMonth(
@@ -165,6 +169,105 @@ if ($context['lastDay'] >= $seasonStartDate) {
     $weeklyPerformancePoints = $pointTotals['weekly_performance'];
 }
 
+try {
+    $balanceFrom = clone $context['firstDay'];
+    if ((int) $balanceFrom->format('N') !== 1) {
+        $balanceFrom->modify('monday this week');
+    }
+
+    $balanceTo = clone $context['lastDay'];
+    if ((int) $balanceTo->format('N') !== 1) {
+        $balanceTo->modify('monday this week');
+    }
+
+    $weeklyPointBalances = $weeklyPointBalanceRepository->forRange(
+        $balanceFrom,
+        $balanceTo
+    );
+} catch (Throwable $e) {
+    // Keep calendar usable before migration is installed.
+    $weeklyPointBalances = [];
+}
+
+/*
+|--------------------------------------------------------------------------
+| Weekly point UI model
+|--------------------------------------------------------------------------
+|
+| Existing PointCalculator weekly values are cumulative values at the START
+| of each Monday. Therefore:
+|   earned during week = next Monday value - this Monday value
+|   estimate = manually entered opening value + earned during week
+|
+| The view files do not need to change. JS upgrades the existing point column.
+*/
+$weeklyPointUi = [];
+$calendarWeeks = array_chunk($days, 7);
+
+foreach ($calendarWeeks as $week) {
+    if (empty($week[0]['date'])) {
+        continue;
+    }
+
+    $weekStart = $week[0]['date'];
+    $nextMonday = (new DateTime($weekStart))
+        ->modify('+7 days')
+        ->format('Y-m-d');
+
+    $weekRow = [
+        'weekStart' => $weekStart,
+        'rehearsal' => [],
+        'performance' => [],
+    ];
+
+    foreach ($members as $member) {
+        $userId = (int) $member['id'];
+
+        $rehearsalCalculatedOpening = (float) (
+            $weeklyRehearsalPoints[$weekStart][$userId]
+            ?? $member['morning_starting_points']
+            ?? 0
+        );
+
+        $performanceCalculatedOpening = (float) (
+            $weeklyPerformancePoints[$weekStart][$userId]
+            ?? $member['evening_starting_points']
+            ?? 0
+        );
+
+        $rehearsalCalculatedEnd = (float) (
+            $weeklyRehearsalPoints[$nextMonday][$userId]
+            ?? ($pointTotals['running_rehearsal'][$userId] ?? $rehearsalCalculatedOpening)
+        );
+
+        $performanceCalculatedEnd = (float) (
+            $weeklyPerformancePoints[$nextMonday][$userId]
+            ?? ($pointTotals['running_performance'][$userId] ?? $performanceCalculatedOpening)
+        );
+
+        $manualRehearsal = $weeklyPointBalances[$weekStart]['rehearsal'][$userId] ?? null;
+        $manualPerformance = $weeklyPointBalances[$weekStart]['performance'][$userId] ?? null;
+
+        $weekRow['rehearsal'][] = [
+            'userId' => $userId,
+            'opening' => $manualRehearsal !== null
+                ? (float) $manualRehearsal
+                : $rehearsalCalculatedOpening,
+            'earned' => $rehearsalCalculatedEnd - $rehearsalCalculatedOpening,
+        ];
+
+        $weekRow['performance'][] = [
+            'userId' => $userId,
+            'opening' => $manualPerformance !== null
+                ? (float) $manualPerformance
+                : $performanceCalculatedOpening,
+            'earned' => $performanceCalculatedEnd - $performanceCalculatedOpening,
+        ];
+    }
+
+    $weeklyPointUi[] = $weekRow;
+}
+
 $csrf = csrf_token();
 
 ?>
@@ -186,6 +289,7 @@ $csrf = csrf_token();
     <link rel="stylesheet" href="assets/css/schedule-changes.css">
     <link rel="stylesheet" href="assets/css/assignments.css">
     <link rel="stylesheet" href="assets/css/roster-fix.css">
+    <link rel="stylesheet" href="assets/css/weekly-points.css">
 </head>
 
 <body>
@@ -290,6 +394,7 @@ $csrf = csrf_token();
                     'isAdmin' => is_admin(),
                     'scheduleChanges' => $scheduleChanges,
                     'assignments' => $assignments,
+                    'weeklyPointUi' => $weeklyPointUi,
                 ],
                 JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
             ) ?>;
@@ -303,6 +408,7 @@ $csrf = csrf_token();
     <script src="assets/js/schedule-changes.js"></script>
     <script src="assets/js/assignments.js"></script>
     <script src="assets/js/roster-hover.js"></script>
+    <script src="assets/js/weekly-points.js"></script>
 
 </body>
 
