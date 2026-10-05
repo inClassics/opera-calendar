@@ -1,98 +1,68 @@
-/*
-|--------------------------------------------------------------------------
-| Weekly opening balance -> end-of-week estimate
-|--------------------------------------------------------------------------
-*/
-
 .weekly-point-balance {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 44px 36px;
+  gap: 5px;
   align-items: center;
-  justify-content: flex-end;
-  gap: 3px;
-  min-width: 0;
+  justify-content: end;
+  width: 100%;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .weekly-point-opening-input {
-  width: 42px;
-  min-width: 0;
+  width: 44px;
   height: 20px;
+  box-sizing: border-box;
   padding: 1px 3px;
   border: 1px solid #c5ccd4;
-  border-radius: 4px;
-  background: #fff8c9;
+  border-radius: 2px;
+  background: #fff;
   font: inherit;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   text-align: right;
 }
 
-.weekly-point-opening-input:focus {
-  outline: 2px solid rgba(47, 93, 138, 0.18);
-  border-color: #6d8fb0;
+.weekly-point-opening-input:disabled {
+  opacity: 1;
+  color: inherit;
+  background: transparent;
+  border-color: transparent;
 }
 
-.weekly-point-opening-input.is-saving {
-  opacity: 0.55;
-}
-.weekly-point-opening-input.is-saved {
-  border-color: #69a873;
-  background: #f0faef;
-}
-.weekly-point-opening-input.is-error {
-  border-color: #c94b45;
-  background: #fff0ef;
-}
-
-.weekly-point-arrow {
-  color: #8a949e;
-  font-size: 9px;
-}
-
-.weekly-point-opening-value,
 .weekly-point-estimate {
   font-size: 10px;
   font-weight: 850;
-}
-
-.weekly-point-estimate {
+  text-align: right;
   color: #315f89;
 }
 
 .desktop-paper-person {
-  grid-template-columns: minmax(0, 1fr) 96px !important;
-}
-
-.desktop-paper-person .weekly-point-balance {
-  width: 96px;
+  grid-template-columns: minmax(0, 1fr) 90px !important;
 }
 
 @media (max-width: 900px) {
   .mobile-overview-week {
-    --mobile-left-width: 122px !important;
+    --mobile-left-width: 120px !important;
   }
 
   .mobile-overview-person,
   .mobile-overview-roster-labels {
-    grid-template-columns: minmax(0, 1fr) 72px !important;
+    grid-template-columns: minmax(0, 1fr) 68px !important;
   }
 
-  .mobile-overview-person .weekly-point-balance {
-    width: 72px;
-    justify-content: center;
+  .weekly-point-balance {
+    grid-template-columns: 32px 28px;
+    gap: 3px;
   }
 
-  .mobile-overview-person .weekly-point-opening-input {
-    width: 30px;
+  .weekly-point-opening-input {
+    width: 32px;
     height: 18px;
     padding: 0 2px;
     font-size: 8px;
   }
 
-  .mobile-overview-person .weekly-point-opening-value,
-  .mobile-overview-person .weekly-point-estimate,
-  .mobile-overview-person .weekly-point-arrow {
+  .weekly-point-estimate {
     font-size: 8px;
   }
 }

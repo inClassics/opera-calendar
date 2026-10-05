@@ -11,6 +11,8 @@ require_once __DIR__ . '/classes/PointCounting.php';
 require_once __DIR__ . '/classes/ScheduleChangeTracker.php';
 require_once __DIR__ . '/classes/Assignment.php';
 require_once __DIR__ . '/classes/WeeklyPointBalance.php';
+require_once __DIR__ . '/classes/Planning.php';
+require_once __DIR__ . '/classes/AssignedPointCalculator.php';
 
 require_login();
 
@@ -21,6 +23,8 @@ $pointCounting = new PointCounting($pdo);
 $changeTracker = new ScheduleChangeTracker($pdo);
 $assignmentRepository = new Assignment($pdo);
 $weeklyPointBalanceRepository = new WeeklyPointBalance($pdo);
+$planningRepository = new Planning($pdo);
+$assignedPointCalculator = new AssignedPointCalculator($pdo);
 
 $members = $userRepository->activeUsers();
 
@@ -191,18 +195,44 @@ try {
 
 /*
 |--------------------------------------------------------------------------
-| Weekly point UI model
+| Weekly point UI
 |--------------------------------------------------------------------------
 |
-| Existing PointCalculator weekly values are cumulative values at the START
-| of each Monday. Therefore:
-|   earned during week = next Monday value - this Monday value
-|   estimate = manually entered opening value + earned during week
+| Opening = actual points manually typed at the beginning of the week.
+| Potential = opening + points from calls assigned in Planning.
 |
-| The view files do not need to change. JS upgrades the existing point column.
+| Availability does NOT award points here.
 */
 $weeklyPointUi = [];
 $calendarWeeks = array_chunk($days, 7);
+
+$potentialFrom = clone $context['firstDay'];
+if ((int)$potentialFrom->format('N') !== 1) {
+    $potentialFrom->modify('monday this week');
+}
+
+$potentialTo = clone $context['lastDay'];
+if ((int)$potentialTo->format('N') !== 7) {
+    $potentialTo->modify('sunday this week');
+}
+
+$weeklyPotentialPoints = [];
+
+try {
+    $effectiveActivities = $planningRepository->activities(
+        $potentialFrom,
+        $potentialTo
+    );
+
+    $weeklyPotentialPoints = $assignedPointCalculator->weeklyPotential(
+        $members,
+        $potentialFrom,
+        $potentialTo,
+        $effectiveActivities
+    );
+} catch (Throwable $e) {
+    $weeklyPotentialPoints = [];
+}
 
 foreach ($calendarWeeks as $week) {
     if (empty($week[0]['date'])) {
@@ -210,9 +240,6 @@ foreach ($calendarWeeks as $week) {
     }
 
     $weekStart = $week[0]['date'];
-    $nextMonday = (new DateTime($weekStart))
-        ->modify('+7 days')
-        ->format('Y-m-d');
 
     $weekRow = [
         'weekStart' => $weekStart,
@@ -221,48 +248,20 @@ foreach ($calendarWeeks as $week) {
     ];
 
     foreach ($members as $member) {
-        $userId = (int) $member['id'];
+        $userId = (int)$member['id'];
 
-        $rehearsalCalculatedOpening = (float) (
-            $weeklyRehearsalPoints[$weekStart][$userId]
-            ?? $member['morning_starting_points']
-            ?? 0
-        );
-
-        $performanceCalculatedOpening = (float) (
-            $weeklyPerformancePoints[$weekStart][$userId]
-            ?? $member['evening_starting_points']
-            ?? 0
-        );
-
-        $rehearsalCalculatedEnd = (float) (
-            $weeklyRehearsalPoints[$nextMonday][$userId]
-            ?? ($pointTotals['running_rehearsal'][$userId] ?? $rehearsalCalculatedOpening)
-        );
-
-        $performanceCalculatedEnd = (float) (
-            $weeklyPerformancePoints[$nextMonday][$userId]
-            ?? ($pointTotals['running_performance'][$userId] ?? $performanceCalculatedOpening)
-        );
-
-        $manualRehearsal = $weeklyPointBalances[$weekStart]['rehearsal'][$userId] ?? null;
-        $manualPerformance = $weeklyPointBalances[$weekStart]['performance'][$userId] ?? null;
-
-        $weekRow['rehearsal'][] = [
-            'userId' => $userId,
-            'opening' => $manualRehearsal !== null
-                ? (float) $manualRehearsal
-                : $rehearsalCalculatedOpening,
-            'earned' => $rehearsalCalculatedEnd - $rehearsalCalculatedOpening,
-        ];
-
-        $weekRow['performance'][] = [
-            'userId' => $userId,
-            'opening' => $manualPerformance !== null
-                ? (float) $manualPerformance
-                : $performanceCalculatedOpening,
-            'earned' => $performanceCalculatedEnd - $performanceCalculatedOpening,
-        ];
+        foreach (['rehearsal', 'performance'] as $pointType) {
+            $weekRow[$pointType][] = [
+                'userId' => $userId,
+                'opening' =>
+                $weeklyPointBalances[$weekStart][$pointType][$userId]
+                    ?? null,
+                'earned' => (float)(
+                    $weeklyPotentialPoints[$weekStart][$pointType][$userId]
+                    ?? 0
+                ),
+            ];
+        }
     }
 
     $weeklyPointUi[] = $weekRow;
